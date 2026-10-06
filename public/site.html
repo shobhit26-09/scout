@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Site history - Scout</title><meta name="robots" content="noindex"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/app.css"></head>
+<body><div id="nav"></div><main class="wrap" id="app"><div class="empty">Loading...</div></main><div id="foot"></div>
+<script type="module">
+import {nav,foot,ago,tone,color,esc} from '/ui.js';
+document.getElementById('nav').innerHTML=nav;document.getElementById('foot').innerHTML=foot;
+const host=decodeURIComponent(location.pathname.split('/').pop());document.title=host+' history - Scout';
+const {history:h}=await (await fetch('/api/site/'+encodeURIComponent(host))).json();
+const app=document.getElementById('app');
+if(!h.length){app.innerHTML=`<div class="center"><h1 style="font-size:40px">No audits yet</h1><p>Nothing saved for ${esc(host)}.</p><a class="btn" href="/">Audit it now</a></div>`}
+else{
+ const pts=[...h].reverse(),W=1000,H=90,p=12;
+ const xy=pts.map((x,i)=>[p+(pts.length===1?(W-2*p)/2:i*(W-2*p)/(pts.length-1)),H-p-(x.score/100)*(H-2*p)]);
+ const line=xy.map((q,i)=>(i?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)).join(' ');
+ const delta=h.length>1?h[0].score-h[h.length-1].score:0;
+ app.innerHTML=`<div class="rhead"><div class="meta"><div class="crumb">Site history</div><h1>${esc(host)}</h1>
+  <div class="u">${h.length} saved audit${h.length>1?'s':''}${h.length>1?` &middot; ${delta>=0?'+':''}${delta} since the first`:''}</div>
+  <div class="actions"><a class="btn" href="/?u=${encodeURIComponent(host)}">Audit again</a></div></div></div>
+  ${h.length>1?`<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="${line}" fill="none" stroke="#0a64ff" stroke-width="2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`:""}
+  <div class="hist">${h.map(x=>`<a class="hrow" href="/crawl/${x.id}"><div class="sc s-${tone(x.score)}">${x.score}</div><div class="m"><b>${esc(x.title||x.url)}</b><span>${esc(x.url)} &middot; ${ago(x.createdAt)}</span></div></a>`).join('')}</div>`}
+</script></body></html>
