@@ -32,17 +32,21 @@ app.post('/api/crawl', async (req, res) => {
   inflight++;
   try {
     const report = await crawl(url);
-    res.json({ id: saveCrawl(report) });
+    res.json({ id: await saveCrawl(report) });
   } catch (e) {
     res.status(422).json({ error: e.message || 'Audit failed.' });
   } finally { inflight--; }
 });
-app.get('/api/crawl/:id', (req, res) => {
-  const r = /^[a-f0-9]{10}$/.test(req.params.id) && getCrawl(req.params.id);
+const wrap = (fn) => (req, res) => fn(req, res).catch(() => res.status(502).json({ error: 'Storage is unavailable right now.' }));
+app.get('/api/crawl/:id', wrap(async (req, res) => {
+  const r = /^[a-f0-9]{10}$/.test(req.params.id) && await getCrawl(req.params.id);
   r ? res.json(r) : res.status(404).json({ error: 'Report not found.' });
-});
-app.get('/api/site/:host', (req, res) => res.json({ host: req.params.host, history: hostHistory(req.params.host.toLowerCase().slice(0, 253)) }));
-app.get('/api/recent', (_req, res) => res.json(recent()));
+}));
+app.get('/api/site/:host', wrap(async (req, res) => {
+  const host = req.params.host.toLowerCase().slice(0, 253);
+  res.json({ host, history: await hostHistory(host) });
+}));
+app.get('/api/recent', wrap(async (_req, res) => res.json(await recent())));
 
 app.use(express.static(pub, { extensions: ['html'] }));
 app.get('/crawl/:id', (_req, res) => res.sendFile(path.join(pub, 'report.html')));
