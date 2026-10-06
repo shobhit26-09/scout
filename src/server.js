@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { crawl } from './crawler.js';
 import { crawlSite } from './site-crawl.js';
 import { randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { saveCrawl, getCrawl, hostHistory, recent } from './db.js';
 
 const app = express();
@@ -83,7 +84,26 @@ app.get('/api/site/:host', wrap(async (req, res) => {
 app.get('/api/recent', wrap(async (_req, res) => res.json(await recent())));
 
 app.use(express.static(pub, { extensions: ['html'] }));
-app.get('/crawl/:id', (_req, res) => res.sendFile(path.join(pub, 'report.html')));
+const ogPng = Buffer.from(readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'og.b64'), 'utf8'), 'base64');
+app.get('/og.png', (_req, res) => res.type('png').set('Cache-Control', 'public, max-age=86400').send(ogPng));
+const reportHtml = readFileSync(path.join(pub, 'report.html'), 'utf8');
+const escA = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+export function shareTags(r, base, id) {
+  const T = { safe: 'Trust: Safe', suspicious: 'Trust: Suspicious', high: 'Trust: High risk' }[r.trust?.verdict];
+  const title = `Scout audit: ${r.host} - ${r.score}/100`;
+  const sev = (k) => (r.type === 'site' ? r.stats?.[k] : r.findings?.filter((x) => x.severity === k).length) ?? 0;
+  const desc = [r.type === 'site' ? `${r.stats?.pages ?? '?'} pages audited` : 'Page audit', T, `${sev('critical')} critical, ${sev('warning')} warnings`].filter(Boolean).join(' · ') + '. See every finding and the fix for each.';
+  const url = `${base}/crawl/${id}`;
+  return `<title>${escA(title)}</title><meta name="description" content="${escA(desc)}"><link rel="canonical" href="${escA(url)}"><meta property="og:type" content="website"><meta property="og:site_name" content="Scout"><meta property="og:title" content="${escA(title)}"><meta property="og:description" content="${escA(desc)}"><meta property="og:url" content="${escA(url)}"><meta property="og:image" content="${base}/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${escA(title)}"><meta name="twitter:description" content="${escA(desc)}"><meta name="twitter:image" content="${base}/og.png">`;
+}
+app.get('/crawl/:id', async (req, res) => {
+  let html = reportHtml;
+  try {
+    const r = /^[a-f0-9]{10}$/.test(req.params.id) && await getCrawl(req.params.id);
+    if (r) html = html.replace(/<title>.*?<\/title>/, shareTags(r, `${req.protocol}://${req.get('host')}`, req.params.id));
+  } catch { /* fall back to the plain page */ }
+  res.type('html').send(html);
+});
 app.get('/site/:host', (_req, res) => res.sendFile(path.join(pub, 'site.html')));
 app.use((_req, res) => res.status(404).sendFile(path.join(pub, '404.html')));
 
