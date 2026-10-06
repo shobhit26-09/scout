@@ -40,7 +40,14 @@ app.post('/api/crawl', async (req, res) => {
 const wrap = (fn) => (req, res) => fn(req, res).catch(() => res.status(502).json({ error: 'Storage is unavailable right now.' }));
 app.get('/api/crawl/:id', wrap(async (req, res) => {
   const r = /^[a-f0-9]{10}$/.test(req.params.id) && await getCrawl(req.params.id);
-  r ? res.json(r) : res.status(404).json({ error: 'Report not found.' });
+  if (!r) return res.status(404).json({ error: 'Report not found.' });
+  let previous = null;
+  try {
+    const prev = (await hostHistory(r.host)).filter((h) => h.id !== r.id && h.createdAt < r.createdAt).sort((a, b) => b.createdAt - a.createdAt)[0];
+    const full = prev && await getCrawl(prev.id);
+    if (full) previous = { id: full.id, score: full.score, categories: full.categories, createdAt: full.createdAt };
+  } catch { /* diff is optional */ }
+  res.json({ ...r, previous });
 }));
 app.get('/api/site/:host', wrap(async (req, res) => {
   const host = req.params.host.toLowerCase().slice(0, 253);

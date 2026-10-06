@@ -10,11 +10,48 @@ export function runChecks(p) {
   out.push(p.https
     ? f('https', 'Security', 'pass', 'Served over HTTPS', 'The page loads on an encrypted connection.')
     : f('https', 'Security', 'critical', 'Not served over HTTPS', 'Browsers flag HTTP pages as "Not secure" and Google treats HTTPS as a ranking signal.', 'Install a TLS certificate (free via Let\'s Encrypt) and 301-redirect all HTTP traffic to HTTPS.'));
+  const h = p.headers || {};
   if (p.https) {
-    out.push(p.headers['strict-transport-security']
-      ? f('hsts', 'Security', 'pass', 'HSTS enabled', p.headers['strict-transport-security'])
-      : f('hsts', 'Security', 'info', 'No Strict-Transport-Security header', 'Without HSTS, a first visit can still be downgraded to HTTP.', 'Send `Strict-Transport-Security: max-age=31536000; includeSubDomains`.'));
+    out.push(h['strict-transport-security']
+      ? f('hsts', 'Security', 'pass', 'HSTS enabled', h['strict-transport-security'])
+      : f('hsts', 'Security', 'warning', 'No Strict-Transport-Security header', 'Without HSTS, a first visit can still be downgraded to HTTP.', 'Send `Strict-Transport-Security: max-age=31536000; includeSubDomains`.'));
   }
+  const csp = h['content-security-policy'];
+  out.push(csp
+    ? f('csp', 'Security', 'pass', 'Content-Security-Policy set', csp.slice(0, 160))
+    : f('csp', 'Security', 'warning', 'No Content-Security-Policy header', 'A CSP limits which scripts and resources can run, which blunts cross-site scripting.', 'Start with `Content-Security-Policy: default-src \'self\'` and allow only the sources you use.'));
+  const xfo = h['x-frame-options'];
+  const frameAncestors = csp && /frame-ancestors/i.test(csp);
+  out.push(xfo || frameAncestors
+    ? f('xfo', 'Security', 'pass', 'Clickjacking protection set', xfo || 'CSP frame-ancestors')
+    : f('xfo', 'Security', 'warning', 'Page can be framed by other sites', 'Without X-Frame-Options or CSP frame-ancestors, another site can embed this page for clickjacking.', 'Send `X-Frame-Options: DENY` (or `SAMEORIGIN`), or use CSP `frame-ancestors \'self\'`.'));
+  out.push(/nosniff/i.test(h['x-content-type-options'] || '')
+    ? f('xcto', 'Security', 'pass', 'X-Content-Type-Options: nosniff', '')
+    : f('xcto', 'Security', 'info', 'No X-Content-Type-Options header', 'Browsers may guess content types and run files as scripts.', 'Send `X-Content-Type-Options: nosniff`.'));
+  out.push(h['referrer-policy']
+    ? f('referrer', 'Security', 'pass', 'Referrer-Policy set', h['referrer-policy'])
+    : f('referrer', 'Security', 'info', 'No Referrer-Policy header', 'Full page URLs can leak to other sites in the Referer header.', 'Send `Referrer-Policy: strict-origin-when-cross-origin`.'));
+  out.push(h['permissions-policy'] || h['feature-policy']
+    ? f('permissions', 'Security', 'pass', 'Permissions-Policy set', (h['permissions-policy'] || h['feature-policy']).slice(0, 160))
+    : f('permissions', 'Security', 'info', 'No Permissions-Policy header', 'You cannot restrict camera, microphone or location access for the page and its embeds.', 'Send `Permissions-Policy: camera=(), microphone=(), geolocation=()` and allow only what you need.'));
+  if (p.https && p.mixedContent) {
+    out.push(f('mixed', 'Security', 'critical', `${p.mixedContent.count} insecure (http://) resources on an HTTPS page`, p.mixedContent.samples.join('\n'), 'Load every script, image, stylesheet and frame over https://.'));
+  } else if (p.https) out.push(f('mixed', 'Security', 'pass', 'No mixed content found', ''));
+  const weak = (p.setCookies || []).map((c) => {
+    const name = c.split('=')[0].trim();
+    const miss = [];
+    if (p.https && !/;\s*secure/i.test(c)) miss.push('Secure');
+    if (!/;\s*httponly/i.test(c)) miss.push('HttpOnly');
+    if (!/;\s*samesite=/i.test(c)) miss.push('SameSite');
+    return miss.length ? `${name}: missing ${miss.join(', ')}` : null;
+  }).filter(Boolean);
+  if (weak.length) out.push(f('cookies', 'Security', weak.some((w) => /Secure/.test(w)) ? 'warning' : 'info', `${weak.length} cookie${weak.length > 1 ? 's' : ''} with weak flags`, weak.slice(0, 5).join('\n'), 'Set `Secure; HttpOnly; SameSite=Lax` on cookies, unless client scripts must read them.'));
+  else if ((p.setCookies || []).length) out.push(f('cookies', 'Security', 'pass', 'Cookies use secure flags', ''));
+  const leaks = [];
+  if (h['x-powered-by']) leaks.push(`X-Powered-By: ${h['x-powered-by']}`);
+  if (/\d/.test(h.server || '')) leaks.push(`Server: ${h.server}`);
+  if (h['x-aspnet-version']) leaks.push(`X-AspNet-Version: ${h['x-aspnet-version']}`);
+  if (leaks.length) out.push(f('server-leak', 'Security', 'info', 'Server software details exposed', leaks.join('\n'), 'Remove or genericize these headers so attackers cannot target known versions.'));
 
   // --- Title
   const tl = p.title.length;
