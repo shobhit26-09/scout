@@ -8,6 +8,11 @@ const id=location.pathname.split('/').pop(),app=document.getElementById('app');
 const r=await fetch('/api/crawl/'+id);
 if(!r.ok){app.innerHTML='<div class="center"><h1>404</h1><p>That report does not exist.</p><a class="btn" href="/">Run an audit</a></div>'}
 else{const d=await r.json();document.title=`${d.host} scored ${d.score} - Scout`;render(d)}
+function dl(n){return `<b class="${n>0?'up':n<0?'down':'flat'}">${n>0?'+':''}${n}</b>`}
+function diff(d){
+ const p=d.previous;if(!p)return '';
+ const rows=Object.entries(d.categories).map(([k,v])=>[k,p.categories[k],v]).filter(([,a])=>a!==undefined);
+ return `<div class="diff"><div class="dh"><span>Since your last audit <a href="/crawl/${p.id}">${ago(p.createdAt)}</a></span><span class="dtot">Score ${p.score} &rarr; ${d.score} ${dl(d.score-p.score)}</span></div><div class="dc">${rows.map(([k,a,v])=>`<span class="dchip">${k} ${a} &rarr; ${v} ${dl(v-a)}</span>`).join('')}</div></div>`}
 function render(d){
  const order={critical:0,warning:1,info:2,pass:3};
  const count=k=>d.findings.filter(x=>x.severity===k).length;
@@ -17,6 +22,7 @@ function render(d){
   <div class="meta"><div class="crumb"><a href="/site/${esc(d.host)}">${esc(d.host)} history</a> / audited ${ago(d.createdAt)}</div>
    <h1>${esc(d.title||d.host)}</h1><div class="u">${esc(d.finalUrl)}</div>
    <div class="actions"><button class="btn" id="copy">Copy link</button><button class="btn ghost" id="again">Run again</button><a class="btn ghost" href="/site/${esc(d.host)}">History</a></div></div></div>
+ ${d.shot?`<figure class="shot" id="shotf"><img src="${esc(d.shot)}" alt="Screenshot of ${esc(d.host)}" loading="lazy" referrerpolicy="no-referrer"><figcaption>Screenshot of the page at audit time, via a free screenshot service</figcaption></figure>`:''}
  <div class="stats">
   <div class="stat"><b>${d.stats.responseMs} ms</b><span>Response time</span></div>
   <div class="stat"><b>${d.stats.htmlKb} KB</b><span>HTML size</span></div>
@@ -24,9 +30,11 @@ function render(d){
   <div class="stat"><b>${d.stats.linksChecked}</b><span>Links checked</span></div>
   <div class="stat"><b>${d.stats.brokenLinks}</b><span>Broken links</span></div></div>
  <div class="cats">${cats.map(([k,v])=>`<span class="cat">${k}<i class="s-${tone(v)}">${v}</i></span>`).join('')}</div>
+ ${diff(d)}
  <div class="toolbar"><div class="seg" id="seg"></div><span style="font-size:13px;color:var(--ink3)">Click a row for the fix</span></div>
  <div id="groups"></div>
  <div class="group"><h3>Heading outline</h3><div class="outline">${d.outline.length?d.outline.map(h=>`<div style="padding-left:${(h.level-1)*18}px"><small>H${h.level}</small>${esc(h.text||'(empty)')}</div>`).join(''):'No headings found.'}</div></div>`;
+ const im=document.querySelector('#shotf img');if(im){let tried=0;im.onerror=()=>{if(!tried&&d.shotAlt){tried=1;im.src=d.shotAlt}else im.closest('figure').remove()};im.onload=()=>{if(im.naturalWidth<300)im.closest('figure').classList.add('wait')}}
  let filter='issues';
  const tabs=[['issues','Issues',count('critical')+count('warning')+count('info')],['critical','Critical',count('critical')],['warning','Warnings',count('warning')],['info','Info',count('info')],['pass','Passed',count('pass')],['all','All',d.findings.length]];
  const seg=document.getElementById('seg');
@@ -35,7 +43,7 @@ function render(d){
   seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{filter=b.dataset.k;draw()});
   const list=d.findings.filter(x=>filter==='all'||(filter==='issues'?x.severity!=='pass':x.severity===filter)).sort((a,b)=>order[a.severity]-order[b.severity]);
   const by={};list.forEach(x=>(by[x.category]??=[]).push(x));
-  document.getElementById('groups').innerHTML=Object.keys(by).length?Object.entries(by).map(([c,items])=>`<div class="group"><h3>${c}</h3><div class="rows">${items.map(x=>`<div class="row"><button aria-expanded="false"><span class="t">${esc(x.title)}</span><span class="badge b-${x.severity}">${x.severity}</span><svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 3 5 5-5 5"/></svg></button><div class="det">${x.detail?`<pre>${esc(x.detail)}</pre>`:''}${x.fix?`<div class="fix"><b>Fix:</b> ${esc(x.fix)}</div>`:(x.detail?'':'Nothing to do here.')}</div></div>`).join('')}</div></div>`).join(''):'<div class="empty">Nothing in this view.</div>';
+  document.getElementById('groups').innerHTML=Object.keys(by).length?Object.entries(by).map(([c,items])=>`<div class="group"><h3>${c}</h3><div class="rows">${items.map(x=>`<div class="row"><button aria-expanded="false"><span class="t">${esc(x.title)}</span><span class="badge b-${x.severity}">${x.severity}</span><svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 3 5 5-5 5"/></svg></button><div class="det">${x.detail?`<pre>${esc(x.detail)}</pre>`:''}${(x.evidence||[]).map(e=>`<div class="ev"><span class="where">in ${esc(e.where)}</span><code>${esc(e.html)}</code></div>`).join('')}${x.fix?`<div class="fix"><b>Fix:</b> ${esc(x.fix)}</div>`:(x.detail?'':'Nothing to do here.')}</div></div>`).join('')}</div></div>`).join(''):'<div class="empty">Nothing in this view.</div>';
   document.querySelectorAll('.row>button').forEach(b=>b.onclick=()=>{const r=b.parentElement;r.classList.toggle('open');b.setAttribute('aria-expanded',r.classList.contains('open'))});
  }
  draw();
