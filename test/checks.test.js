@@ -28,3 +28,26 @@ test('flags missing security headers, mixed content and weak cookies', () => {
   const ids = runChecks(p).filter((x) => x.category === 'Security' && x.severity !== 'pass').map((x) => x.id);
   for (const id of ['hsts', 'csp', 'xfo', 'xcto', 'referrer', 'permissions', 'mixed', 'cookies']) assert.ok(ids.includes(id), id);
 });
+
+import { trustFindings, registrable } from '../src/trust.js';
+import * as cheerio from 'cheerio';
+const tf = (html, over = {}) => {
+  const $ = cheerio.load(html);
+  return trustFindings({ host: 'secure-paypa1-login.xyz', url: 'http://secure-paypa1-login.xyz/', https: false, $, text: $.root().text(), snippet: ($2, el) => $2.html(el), whereIs: () => 'body', signals: { age: { ok: true, created: Date.now() - 5 * 86400000, registrar: 'X' }, sb: { status: 'threat', threats: ['SOCIAL_ENGINEERING'] } }, ...over });
+};
+test('registrable domain handles two-part TLDs', () => {
+  assert.equal(registrable('www.shop.example.co.uk'), 'example.co.uk');
+  assert.equal(registrable('a.b.example.com'), 'example.com');
+});
+test('scam-like page gets a high-risk verdict with evidence', () => {
+  const r = tf('<title>PayPal Login</title><h1>PayPal</h1><form action="/go"><input type="password"></form><p>Your account has been suspended. Verify immediately.</p>');
+  assert.equal(r.trust.verdict, 'high');
+  const ids = r.findings.filter((x) => x.severity !== 'pass').map((x) => x.id);
+  for (const id of ['trust-sb', 'trust-age', 'trust-tld', 'trust-brand', 'trust-pw', 'trust-urgency']) assert.ok(ids.includes(id), id);
+  assert.ok(r.evidence['trust-pw'].length);
+});
+test('established site with clean signals is safe and unavailable checks stay neutral', () => {
+  const r = trustFindings({ host: 'good.example.com', url: 'https://good.example.com/', https: true, $: cheerio.load('<title>Good</title><a href="/privacy">Privacy</a><a href="/contact">Contact</a>'), text: 'hello', snippet: () => '', whereIs: () => '', signals: { age: { ok: true, created: Date.now() - 4000 * 86400000, registrar: 'R' }, sb: { status: 'unavailable', reason: 'no API key configured' } } });
+  assert.equal(r.trust.verdict, 'safe');
+  assert.ok(r.findings.find((x) => x.id === 'trust-sb').neutral);
+});

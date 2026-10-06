@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio';
 import { safeFetch, assertPublicUrl } from './safe-fetch.js';
 import { runChecks, score, categoryScores } from './checks.js';
+import { fetchSignals, trustFindings } from './trust.js';
 
 const MAX_LINK_CHECKS = 25;
 
@@ -62,6 +63,7 @@ export async function crawl(inputUrl, onStep = () => {}, opts = {}) {
   if (!/^https?:\/\//i.test(raw)) raw = 'https://' + raw;
   const target = await assertPublicUrl(raw);
   const origin = target.origin;
+  const sigP = !fast || opts.trust ? fetchSignals(target.href, target.hostname) : null; // runs alongside the audit
   // Free screenshot services render off our server (no headless browser on the free instance).
   // Warm the render now, fire and forget, so the image is ready by the time the report opens.
   const shot = `https://image.thum.io/get/width/1200/crop/800/${target.href}`;
@@ -183,9 +185,16 @@ export async function crawl(inputUrl, onStep = () => {}, opts = {}) {
   const brokenSet = new Set(broken.map((b) => b.url));
   add('broken', linkEls.filter((a) => brokenSet.has((abs(($(a).attr('href') || '').trim()) || '').split('#')[0])));
   add('mixed', $('script[src],img[src],iframe[src],link[rel~="stylesheet"][href],source[src],video[src],audio[src]').get().filter((el) => /^http:\/\//i.test(($(el).attr('src') || $(el).attr('href') || '').trim())));
-  const findings = runChecks(page).map((x) => (x.severity !== 'pass' && evidence[x.id] ? { ...x, evidence: evidence[x.id] } : x));
+  const base0 = runChecks(page);
+  let trust = null;
+  if (sigP) {
+    const t = trustFindings({ host: new URL(base).hostname, url: base, https: page.https, chain: res.chain, $, text: bodyText, signals: await sigP, snippet, whereIs });
+    Object.assign(evidence, t.evidence); base0.push(...t.findings); trust = t.trust;
+  }
+  const findings = base0.map((x) => (x.severity !== 'pass' && evidence[x.id] ? { ...x, evidence: evidence[x.id] } : x));
   const internalLinks = fast ? [...hrefs.keys()].filter((u) => { try { const x = new URL(u); return x.hostname.replace(/^www\./, '') === baseHost && !/\.(pdf|zip|png|jpe?g|gif|svg|webp|mp4|css|js|xml|ico|woff2?)$/i.test(x.pathname); } catch { return false; } }).slice(0, 300) : undefined;
   return {
+    trust,
     internalLinks,
     url: page.url, finalUrl: page.finalUrl, host: new URL(page.finalUrl).hostname.replace(/^www\./, ''),
     shot, shotAlt, title: page.title, score: score(findings), categories: categoryScores(findings), findings,
