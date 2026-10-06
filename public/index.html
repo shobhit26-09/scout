@@ -10,6 +10,7 @@
   <h1 class="display">See what your site is <em>missing.</em></h1>
   <p class="sub">Paste any URL. Scout reads it like a search engine does, scores it, and tells you exactly what to fix. Every report gets its own link.</p>
   <form class="go" id="f"><input id="u" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="yourwebsite.com" aria-label="Website URL" autofocus><button class="btn" id="b">Audit site <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></form>
+  <div class="mode" id="mode" role="group" aria-label="Audit scope"><button type="button" data-m="page" class="on">One page</button><button type="button" data-m="site">Whole site <small>up to 50 pages</small></button></div>
   <div class="steps" id="steps"><div class="bar"><b></b></div><p id="stepTxt">Starting...</p></div>
   <div class="err" id="err" role="alert"></div>
   <div class="hint">Try <button type="button" data-u="stripe.com">stripe.com</button> <button type="button" data-u="stocksensee.netlify.app">stocksensee.netlify.app</button> <button type="button" data-u="example.com">example.com</button></div>
@@ -56,9 +57,19 @@ const f=document.getElementById('f'),u=document.getElementById('u'),b=document.g
 const q=new URLSearchParams(location.search).get('u');if(q)u.value=q;
 document.querySelectorAll('[data-u]').forEach(x=>x.onclick=()=>{u.value=x.dataset.u;f.requestSubmit()});
 const msgs=['Reading robots.txt','Fetching the page','Analyzing markup','Looking for a sitemap','Checking links'];
+let mode='page';document.querySelectorAll('#mode button').forEach(x=>x.onclick=()=>{mode=x.dataset.m;document.querySelectorAll('#mode button').forEach(y=>y.classList.toggle('on',y===x));b.firstChild.textContent=mode==='site'?'Crawl site ':'Audit site '});
+async function runSite(){
+ const r=await fetch('/api/site-crawl',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:u.value})});const d=await r.json();if(!r.ok)throw new Error(d.error);
+ steps.classList.add('on');
+ for(;;){await new Promise(ok=>setTimeout(ok,1500));const p=await fetch('/api/site-crawl/'+d.job);const j=await p.json();if(!p.ok)throw new Error(j.error);
+  if(j.status==='error')throw new Error(j.error);
+  if(j.status==='done'){location.href='/crawl/'+j.id;return}
+  const g=j.progress||{};st.textContent=g.total?`Auditing pages ${g.done}/${g.total} - ${g.current}`:(g.phase||'Working')+'...';
+  const bar=document.querySelector('#steps .bar b');if(bar&&g.total){bar.style.animation='none';bar.style.width=Math.max(6,Math.round(g.done/g.total*100))+'%'}}
+}
 f.onsubmit=async e=>{e.preventDefault();err.textContent='';if(!u.value.trim()){err.textContent='Enter a URL to audit.';return}
  b.disabled=true;steps.classList.add('on');let i=0;st.textContent=msgs[0];const t=setInterval(()=>{i=Math.min(i+1,msgs.length-1);st.textContent=msgs[i]+'...'},1400);
- try{const r=await fetch('/api/crawl',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:u.value})});const d=await r.json();if(!r.ok)throw new Error(d.error);location.href='/crawl/'+d.id}
+ try{if(mode==='site'){await runSite();return}const r=await fetch('/api/crawl',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:u.value})});const d=await r.json();if(!r.ok)throw new Error(d.error);location.href='/crawl/'+d.id}
  catch(x){err.textContent=x.message;b.disabled=false;steps.classList.remove('on')}finally{clearInterval(t)}};
 fetch('/api/recent').then(r=>r.json()).then(l=>{if(!l.length)return;document.getElementById('recent').hidden=false;
  document.getElementById('recentList').innerHTML=l.map(x=>`<a class="rc" href="/crawl/${x.id}"><div class="sc s-${tone(x.score)}">${x.score}</div><div><b>${esc(x.host)}</b><span>${ago(x.createdAt)}</span></div></a>`).join('')});
