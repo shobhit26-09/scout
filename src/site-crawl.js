@@ -43,14 +43,14 @@ export async function crawlSite(inputUrl, onProgress = () => {}, limits = LIMITS
   sm.urls.forEach(enqueue);
 
   const pages = [], skipped = [], issues = new Map(), titles = new Map(), descs = new Map();
-  const sums = {}; let capped = null;
+  const sums = {}; let capped = null, trust = null;
   while (queue.length) {
     if (pages.length >= limits.pages) { capped = 'page limit'; break; }
     if (Date.now() - t0 > limits.ms) { capped = 'time limit'; break; }
     const url = queue.shift();
     onProgress({ phase: 'Auditing pages', done: pages.length, total: Math.min(limits.pages, pages.length + queue.length + 1), current: new URL(url).pathname || '/' });
     try {
-      const r = await crawl(url, () => {}, shared);
+      const r = await crawl(url, () => {}, { ...shared, trust: !trust });
       const counts = { critical: 0, warning: 0, info: 0 };
       for (const f of r.findings) {
         if (f.severity === 'pass') continue;
@@ -61,6 +61,7 @@ export async function crawlSite(inputUrl, onProgress = () => {}, limits = LIMITS
         rec.pages++; if (rec.sample.length < 3) rec.sample.push(new URL(r.finalUrl).pathname || '/');
         issues.set(key, rec);
       }
+      if (r.trust && !trust) trust = r.trust;
       for (const [k, v] of Object.entries(r.categories)) (sums[k] ||= []).push(v);
       const path = new URL(r.finalUrl).pathname || '/';
       pages.push({ url: r.finalUrl, path, title: r.title, score: r.score, counts, ms: r.stats.responseMs, words: r.stats.words });
@@ -89,7 +90,7 @@ export async function crawlSite(inputUrl, onProgress = () => {}, limits = LIMITS
     score: avg(pages.map((p) => p.score)),
     categories: Object.fromEntries(Object.entries(sums).map(([k, v]) => [k, avg(v)])),
     findings: [], stats: { pages: pages.length, ...totals, skipped: skipped.length, seconds: Math.round((Date.now() - t0) / 1000), sitemap: sm.info.found ? sm.info.urls : 0 },
-    capped, limits: { pages: limits.pages, seconds: Math.round(limits.ms / 1000) },
+    trust, capped, limits: { pages: limits.pages, seconds: Math.round(limits.ms / 1000) },
     pages: pages.sort((a, b) => a.score - b.score),
     issues: [...issues.values()].sort((a, b) => order[a.severity] - order[b.severity] || b.pages - a.pages).slice(0, 60),
     skipped: skipped.slice(0, 20),
