@@ -260,3 +260,5 @@ section.block.tight{padding-top:64px}
 .rskel .ring0{width:132px;height:132px;border-radius:50%}.rskel .meta{flex:1;min-width:240px;display:grid;gap:12px}
 .rskel .st{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px;margin:26px 0}.rskel .st div{height:68px;border-radius:14px}
 .rskel .rw{height:54px;margin-bottom:8px;border-radius:14px}
+/* history rows must not overflow on small screens */
+.hist{grid-template-columns:minmax(0,1fr)}.hrow{min-width:0}.nf h1{overflow-wrap:anywhere}
