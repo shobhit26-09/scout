@@ -1,0 +1,100 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>How Scout works - checks, scoring and the Trust verdict</title>
+<meta name="description" content="Exactly what Scout checks, how the score is calculated, how the Trust verdict works, and the limits it runs under.">
+<meta property="og:title" content="How Scout works"><meta property="og:description" content="What Scout checks, how the score is calculated, and how the Trust verdict works."><meta property="og:image" content="/og.png"><meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/app.css"></head>
+<body><div id="nav"></div>
+<main class="wrap">
+<header class="doc-hero">
+  <span class="pill"><i></i>No black boxes</span>
+  <h1 class="display" style="max-width:16ch">How Scout works</h1>
+  <p class="sub">Plain rules, applied the same way every time. Here is what Scout looks at, how it turns that into a score, and what it will not do.</p>
+</header>
+
+<section class="block tight" id="pipeline">
+  <h2 class="sec">From URL to report</h2>
+  <ol class="tl">
+    <li><b>Check the rules.</b><span>Scout fetches robots.txt first. If the page is disallowed for crawlers, it stops and tells you. Private and local addresses are refused.</span></li>
+    <li><b>Fetch the page.</b><span>One request, identified as ScoutBot, the way a search engine would see it. It records response time, size and headers.</span></li>
+    <li><b>Run the checks.</b><span>The HTML is parsed and every check runs against it. Links are probed, and the sitemap is looked up. For whole-site crawls, Scout follows internal links up to 50 pages with a short pause between pages.</span></li>
+    <li><b>Look up trust signals.</b><span>The domain is checked against Google Safe Browsing and public registration data (RDAP), alongside URL and page patterns.</span></li>
+    <li><b>Save and score.</b><span>Findings are scored, saved, and given a link of their own. A screenshot is requested from a free screenshot service.</span></li>
+  </ol>
+</section>
+
+<section class="block tight" id="scoring">
+  <h2 class="sec">How the score works</h2>
+  <p class="lede">Every score starts at 100 and loses points for each problem. No weighting tricks and no machine learning, so the same page gets the same score.</p>
+  <div class="split">
+    <div class="tbl">
+      <div class="tr th"><span>Finding type</span><span>Points lost</span></div>
+      <div class="tr"><span><i class="badge b-critical">critical</i></span><span>12</span></div>
+      <div class="tr"><span><i class="badge b-warning">warning</i></span><span>5</span></div>
+      <div class="tr"><span><i class="badge b-info">info</i></span><span>1.5</span></div>
+      <div class="tr"><span><i class="badge b-pass">pass</i></span><span>0</span></div>
+    </div>
+    <div class="note">
+      <p><b>Overall score</b> uses all findings together. <b>Category scores</b> use only that category's findings, so a weak Security score does not hide a strong SEO one.</p>
+      <p>Colors: <b class="g">85 and up</b> is good, <b class="a">60 to 84</b> needs work, <b class="r">under 60</b> needs attention.</p>
+      <p>Whole-site crawls score each page the same way and group identical issues, so you see "missing meta description on 9 pages" instead of nine rows.</p>
+    </div>
+  </div>
+</section>
+
+<section class="block tight" id="categories">
+  <h2 class="sec">What each category looks at</h2>
+  <div class="cgrid">
+    <div class="cbox"><h3>SEO</h3><ul><li>Title and meta description length</li><li>One clear h1</li><li>Canonical URL</li><li>noindex directives</li><li>Structured data (JSON-LD)</li></ul></div>
+    <div class="cbox"><h3>Performance</h3><ul><li>Response time</li><li>HTML size and compression</li><li>Render-blocking scripts</li><li>Lazy-loaded images</li><li>Redirects before the page</li><li>Image dimensions</li></ul></div>
+    <div class="cbox"><h3>Security</h3><ul><li>HTTPS and HSTS</li><li>Content-Security-Policy</li><li>Clickjacking, nosniff, referrer and permissions headers</li><li>Mixed content</li><li>Cookie flags and server details exposed</li></ul></div>
+    <div class="cbox"><h3>Accessibility</h3><ul><li>Image alt text</li><li>Heading order</li><li>Page language</li><li>Descriptive link text</li></ul></div>
+    <div class="cbox"><h3>Crawlability</h3><ul><li>robots.txt present and sane</li><li>Whether all crawlers are blocked</li><li>Sitemap present</li></ul></div>
+    <div class="cbox"><h3>Links</h3><ul><li>Broken links, checked with a request each</li><li>Count of internal and external links</li></ul></div>
+    <div class="cbox"><h3>Mobile</h3><ul><li>Viewport meta tag, so pages scale properly on phones</li></ul></div>
+    <div class="cbox"><h3>Social</h3><ul><li>Open Graph tags</li><li>Twitter/X card</li><li>Favicon</li></ul></div>
+  </div>
+  <p class="foot-note">Scout reads the HTML a server returns. It does not run JavaScript, so content added only in the browser is not seen, and it is not a replacement for real-user speed tools.</p>
+</section>
+
+<section class="block tight" id="trust">
+  <h2 class="sec">The Trust verdict</h2>
+  <p class="lede">A fast, evidence-based read on whether a site looks like a scam. It is a risk signal, not a guarantee in either direction.</p>
+  <div class="verdicts">
+    <div class="vd t-safe"><b>Safe</b><span>No meaningful signals found.</span></div>
+    <div class="vd t-suspicious"><b>Suspicious</b><span>3 or more warning points. Check before you pay or sign in.</span></div>
+    <div class="vd t-high"><b>High risk</b><span>A Google Safe Browsing hit, or 6 or more points.</span></div>
+  </div>
+  <div class="cgrid" style="margin-top:14px">
+    <div class="cbox"><h3>Blacklist</h3><ul><li>Google Safe Browsing lookup for malware, social engineering, unwanted software and harmful apps</li><li>Any hit is High risk by itself</li><li>If the lookup is unavailable, the verdict says so and uses the other signals</li></ul></div>
+    <div class="cbox"><h3>Domain age</h3><ul><li>Registration date from public RDAP records</li><li>Under 6 months adds warning points</li><li>Under 30 days is a strong signal</li></ul></div>
+    <div class="cbox"><h3>URL patterns</h3><ul><li>Raw IP addresses and punycode lookalikes</li><li>Link shorteners and risky domain endings</li><li>Brand names inside unrelated domains</li></ul></div>
+    <div class="cbox"><h3>Page patterns</h3><ul><li>Password form on a page that names a known brand</li><li>Pressure language such as "account suspended"</li><li>Missing contact details or only a webmail address</li><li>Trust badges with no source</li></ul></div>
+  </div>
+  <p class="foot-note">Every flag in a report shows the exact evidence behind it. For whole-site crawls the verdict is computed once, on the homepage.</p>
+</section>
+
+<section class="block tight" id="limits">
+  <h2 class="sec">Limits and good manners</h2>
+  <div class="tbl wide">
+    <div class="tr th"><span>What</span><span>Limit</span></div>
+    <div class="tr"><span>Single-page audits</span><span>6 per 10 minutes per visitor</span></div>
+    <div class="tr"><span>Whole-site crawls</span><span>2 per 10 minutes per visitor, up to 50 pages</span></div>
+    <div class="tr"><span>Pace</span><span>One page at a time, short pause between pages</span></div>
+    <div class="tr"><span>robots.txt</span><span>Always followed. Disallowed pages are skipped</span></div>
+    <div class="tr"><span>Addresses</span><span>Public websites only</span></div>
+  </div>
+</section>
+
+<section class="block tight" id="data">
+  <h2 class="sec">What gets stored</h2>
+  <p class="lede" style="margin-bottom:0">Each report is saved so it can live at its own link, and recent audits are listed on the homepage. That is the audited page's results, not anything about you. Scout has no accounts and no trackers. Do not audit pages you want to keep private. The code is open: <a href="https://github.com/shobhit26-09/scout" rel="noopener" style="color:var(--blue)">github.com/shobhit26-09/scout</a>.</p>
+</section>
+
+<section class="cta">
+  <h2>Try it on your own site.</h2>
+  <p>It takes about ten seconds.</p>
+  <a class="btn" href="/">Audit a site</a>
+</section>
+</main>
+<div id="foot"></div>
+<script type="module">import {nav,foot} from '/ui.js';document.getElementById('nav').innerHTML=nav;document.getElementById('foot').innerHTML=foot</script></body></html>
