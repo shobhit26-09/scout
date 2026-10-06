@@ -1,0 +1,65 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scout - Free SEO and performance audit for any URL</title>
+<meta name="description" content="Paste a URL and get a scored SEO, performance and accessibility audit with concrete fixes. Every report is saved at a shareable link.">
+<meta property="og:title" content="Scout - audit any website in seconds"><meta property="og:description" content="Scored SEO and performance checks with exact fixes, saved at a permalink.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/app.css"></head>
+<body><div id="nav"></div>
+<main class="wrap">
+<header class="hero">
+  <span class="pill"><i></i>Free. No account needed.</span>
+  <h1 class="display">See what your site is <em>missing.</em></h1>
+  <p class="sub">Paste any URL. Scout reads it like a search engine does, scores it, and tells you exactly what to fix. Every report gets its own link.</p>
+  <form class="go" id="f"><input id="u" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="yourwebsite.com" aria-label="Website URL" autofocus><button class="btn" id="b">Audit site <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></form>
+  <div class="steps" id="steps"><div class="bar"><b></b></div><p id="stepTxt">Starting...</p></div>
+  <div class="err" id="err" role="alert"></div>
+  <div class="hint">Try <button type="button" data-u="stripe.com">stripe.com</button> <button type="button" data-u="stocksensee.netlify.app">stocksensee.netlify.app</button> <button type="button" data-u="example.com">example.com</button></div>
+
+  <div class="preview" aria-hidden="true">
+    <div class="pv-top"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="pv-url">scout / report / example.com</span></div>
+    <div class="pv-body">
+      <div class="ringbox" id="pvRing"></div>
+      <div>
+        <div class="rows" style="box-shadow:none">
+          <div class="row"><button tabindex="-1"><span class="t">Missing meta description</span><span class="badge b-critical">critical</span></button></div>
+          <div class="row"><button tabindex="-1"><span class="t">Title is long (74 chars)</span><span class="badge b-warning">warning</span></button></div>
+          <div class="row"><button tabindex="-1"><span class="t">3 of 12 images have no alt text</span><span class="badge b-warning">warning</span></button></div>
+          <div class="row"><button tabindex="-1"><span class="t">Open Graph tags complete</span><span class="badge b-pass">pass</span></button></div>
+          <div class="row"><button tabindex="-1"><span class="t">Served over HTTPS</span><span class="badge b-pass">pass</span></button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section class="block" id="how">
+  <h2 class="sec">Clear findings. Real fixes.</h2>
+  <p class="lede">No vague scores. Every check says what it found, why it matters, and the exact change to make.</p>
+  <div class="grid3">
+    <div class="feat"><div class="ico b"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="6"/><path d="m14 14 3.5 3.5"/></svg></div><h3>SEO and structure</h3><p>Titles, descriptions, headings, canonicals, Open Graph, structured data, sitemap and robots.txt.</p></div>
+    <div class="feat"><div class="ico g"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11a7 7 0 0 1 14 0"/><path d="m10 11 3.5-4"/></svg></div><h3>Speed and weight</h3><p>Response time, HTML size, compression, blocking scripts and redirect chains.</p></div>
+    <div class="feat"><div class="ico a"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12 5.5 14.5a2.8 2.8 0 0 1-4-4L4 8"/><path d="m12 8 2.5-2.5a2.8 2.8 0 0 1 4 4L16 12"/><path d="m7 13 6-6"/></svg></div><h3>Links and access</h3><p>Broken link detection, missing alt text, heading order, language and mobile viewport.</p></div>
+  </div>
+</section>
+
+<section class="block" id="recent" hidden>
+  <h2 class="sec">Recently audited</h2>
+  <p class="lede">Public reports from other visitors.</p>
+  <div class="recent" id="recentList"></div>
+</section>
+</main>
+<div id="foot"></div>
+<script type="module">
+import {nav,foot,ring,ago,tone,esc} from '/ui.js';
+document.getElementById('nav').innerHTML=nav;document.getElementById('foot').innerHTML=foot;
+document.getElementById('pvRing').innerHTML=ring(72);
+const f=document.getElementById('f'),u=document.getElementById('u'),b=document.getElementById('b'),err=document.getElementById('err'),steps=document.getElementById('steps'),st=document.getElementById('stepTxt');
+const q=new URLSearchParams(location.search).get('u');if(q)u.value=q;
+document.querySelectorAll('[data-u]').forEach(x=>x.onclick=()=>{u.value=x.dataset.u;f.requestSubmit()});
+const msgs=['Reading robots.txt','Fetching the page','Analyzing markup','Looking for a sitemap','Checking links'];
+f.onsubmit=async e=>{e.preventDefault();err.textContent='';if(!u.value.trim()){err.textContent='Enter a URL to audit.';return}
+ b.disabled=true;steps.classList.add('on');let i=0;st.textContent=msgs[0];const t=setInterval(()=>{i=Math.min(i+1,msgs.length-1);st.textContent=msgs[i]+'...'},1400);
+ try{const r=await fetch('/api/crawl',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:u.value})});const d=await r.json();if(!r.ok)throw new Error(d.error);location.href='/crawl/'+d.id}
+ catch(x){err.textContent=x.message;b.disabled=false;steps.classList.remove('on')}finally{clearInterval(t)}};
+fetch('/api/recent').then(r=>r.json()).then(l=>{if(!l.length)return;document.getElementById('recent').hidden=false;
+ document.getElementById('recentList').innerHTML=l.map(x=>`<a class="rc" href="/crawl/${x.id}"><div class="sc s-${tone(x.score)}">${x.score}</div><div><b>${esc(x.host)}</b><span>${ago(x.createdAt)}</span></div></a>`).join('')});
+</script></body></html>
