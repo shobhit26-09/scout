@@ -1,13 +1,14 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Site history - Scout</title><meta name="robots" content="noindex"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/app.css"></head>
-<body><div id="nav"></div><main class="wrap" id="app"><div class="empty">Loading...</div></main><div id="foot"></div>
+<body><div id="nav"></div><main class="wrap" id="app"><div class="rskel" aria-busy="true"><div class="head"><div class="meta"><div class="sk" style="height:14px;width:20%"></div><div class="sk" style="height:32px;width:50%"></div><div class="sk" style="height:14px;width:35%"></div></div></div><div class="sk" style="height:90px;margin:22px 0;border-radius:16px"></div><div class="sk rw"></div><div class="sk rw"></div><div class="sk rw"></div></div></main><div id="foot"></div>
 <script type="module">
 import {nav,foot,ago,tone,color,esc} from '/ui.js';
 document.getElementById('nav').innerHTML=nav;document.getElementById('foot').innerHTML=foot;
 const host=decodeURIComponent(location.pathname.split('/').pop());document.title=host+' history - Scout';
-const {history:h}=await (await fetch('/api/site/'+encodeURIComponent(host))).json();
 const app=document.getElementById('app');
-if(!h.length){app.innerHTML=`<div class="center"><h1 style="font-size:40px">No audits yet</h1><p>Nothing saved for ${esc(host)}.</p><a class="btn" href="/">Audit it now</a></div>`}
+let h=null;try{const r=await fetch('/api/site/'+encodeURIComponent(host));if(r.ok)h=(await r.json()).history}catch{}
+if(!h){document.title='History unavailable - Scout';app.innerHTML=`<div class="nf"><p class="code" style="font-size:clamp(56px,12vw,96px)">Oops</p><h1>We couldn\u2019t load this history</h1><p>Something went wrong on our side. Try again in a moment.</p><div class="acts"><a class="btn" href="${location.pathname}">Try again</a><a class="btn ghost" href="/">Audit a site</a></div></div>`}
+else if(!h.length){app.innerHTML=`<div class="nf"><p class="code" style="font-size:clamp(56px,12vw,96px)">0</p><h1>No audits yet for ${esc(host)}</h1><p>Run the first one and its history, with a score trend, will build up here.</p><div class="acts"><a class="btn" href="/?u=${encodeURIComponent(host)}">Audit ${esc(host)}</a><a class="btn ghost" href="/">Back to Scout</a></div></div>`}
 else{
  const pts=[...h].reverse(),W=1000,H=90,p=12;
  const xy=pts.map((x,i)=>[p+(pts.length===1?(W-2*p)/2:i*(W-2*p)/(pts.length-1)),H-p-(x.score/100)*(H-2*p)]);
