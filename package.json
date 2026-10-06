@@ -1,0 +1,21 @@
+{
+  "name": "scout",
+  "version": "1.0.0",
+  "description": "Paste a URL, get a saved SEO and performance audit with concrete fixes.",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "express": "^5.2.1"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  }
+}
