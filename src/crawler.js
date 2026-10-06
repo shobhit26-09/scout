@@ -30,11 +30,41 @@ function parseRobots(txt) {
   return { allowed, sitemaps, blocksAll };
 }
 
+
+const VOID = /^(img|meta|link|input|br|hr|source)$/i;
+const snippet = ($, el) => {
+  const html = $.html(el) || '';
+  const tag = el.tagName || el.name || '';
+  const out = VOID.test(tag) ? html : (html.length > 200 ? html.slice(0, 200) + '...' : html);
+  return out.replace(/\s+/g, ' ').slice(0, 260);
+};
+const whereIs = ($, el) => {
+  const bits = [];
+  for (const a of $(el).parents().get()) {
+    const t = a.tagName; if (!t || t === 'html') continue;
+    const role = ($(a).attr('role') || '').toLowerCase();
+    const label = `${$(a).attr('id') || ''} ${$(a).attr('class') || ''}`.toLowerCase();
+    let name = null;
+    if (['header', 'nav', 'footer', 'aside', 'main', 'form', 'head'].includes(t)) name = t;
+    else if (['banner', 'navigation', 'contentinfo', 'complementary', 'main'].includes(role)) name = { banner: 'header', navigation: 'nav', contentinfo: 'footer', complementary: 'aside', main: 'main' }[role];
+    else if (/(^|[\s_-])(hero|banner|masthead)([\s_-]|$)/.test(label)) name = 'hero';
+    else if (/(^|[\s_-])(footer)([\s_-]|$)/.test(label)) name = 'footer';
+    else if (/(^|[\s_-])(nav|menu|navbar)([\s_-]|$)/.test(label)) name = 'nav';
+    if (name && !bits.includes(name)) bits.unshift(name);
+  }
+  return bits.slice(-2).join(' > ') || 'page body';
+};
+
 export async function crawl(inputUrl, onStep = () => {}) {
   let raw = inputUrl.trim();
   if (!/^https?:\/\//i.test(raw)) raw = 'https://' + raw;
   const target = await assertPublicUrl(raw);
   const origin = target.origin;
+  // Free screenshot services render off our server (no headless browser on the free instance).
+  // Warm the render now, fire and forget, so the image is ready by the time the report opens.
+  const shot = `https://image.thum.io/get/width/1200/crop/800/${target.href}`;
+  const shotAlt = `https://s0.wp.com/mshots/v1/${encodeURIComponent(target.href)}?w=1200`;
+  for (const u of [shot, shotAlt]) fetch(u, { signal: AbortSignal.timeout(8000) }).then((r) => r.body?.cancel()).catch(() => {});
 
   onStep('Reading robots.txt');
   const robotsRes = await safeFetch(origin + '/robots.txt').catch(() => null);
@@ -105,7 +135,16 @@ export async function crawl(inputUrl, onStep = () => {}) {
   }));
   const broken = results.filter((r) => r.status === 0 || r.status === 404 || r.status === 410 || r.status >= 500);
 
+  const insecure = [];
+  if (new URL(base).protocol === 'https:') {
+    $('script[src],img[src],iframe[src],link[rel~="stylesheet"][href],source[src],video[src],audio[src]').each((_, el) => {
+      const u = ($(el).attr('src') || $(el).attr('href') || '').trim();
+      if (/^http:\/\//i.test(u)) insecure.push(u.slice(0, 90));
+    });
+  }
   const page = {
+    mixedContent: insecure.length ? { count: insecure.length, samples: insecure.slice(0, 3) } : null,
+    setCookies: typeof res.headers.getSetCookie === 'function' ? res.headers.getSetCookie() : [],
     url: target.href, finalUrl: base, status: res.status, https: new URL(base).protocol === 'https:',
     headers: Object.fromEntries(res.headers.entries()), chain: res.chain, redirects: res.chain.length - 1,
     title: text($('head title').first()), description: meta('description'), lang: ($('html').attr('lang') || '').trim(),
@@ -120,10 +159,28 @@ export async function crawl(inputUrl, onStep = () => {}) {
     wordCount: bodyText ? bodyText.split(' ').length : 0, bytes: res.bytes, timing: { ttfbMs: res.ms },
     robotsTxt: { found: robotsFound, blocksAll: robots.blocksAll }, sitemap,
   };
-  const findings = runChecks(page);
+
+  // Evidence: the exact element behind a finding, plus where it sits in the page.
+  const evidence = {};
+  const add = (id, els, max = 3) => { const list = els.slice(0, max).map((el) => ({ html: snippet($, el), where: whereIs($, el) })); if (list.length) evidence[id] = list; };
+  add('img-alt', missing);
+  add('img-size', imgs.filter((i) => !($(i).attr('width') && $(i).attr('height'))));
+  add('title', $('head title').get());
+  add('description', $('meta[name="description"]').get());
+  if ($('h1').length > 1) add('h1', $('h1').get());
+  add('canonical', $('link[rel="canonical"]').get());
+  add('noindex', $('meta[name="robots"]').get());
+  add('viewport', $('meta[name="viewport"]').get());
+  add('link-text', linkEls.filter((a) => /^(click here|read more|here|more|learn more)$/i.test(text(a))));
+  add('blocking-js', headEls.filter((x) => !$(x).attr('defer') && !$(x).attr('async') && $(x).attr('type') !== 'module'));
+  add('heading-order', $('h1,h2,h3,h4,h5,h6').get().filter((el, i, all) => i > 0 && +el.tagName[1] - +all[i - 1].tagName[1] > 1));
+  const brokenSet = new Set(broken.map((b) => b.url));
+  add('broken', linkEls.filter((a) => brokenSet.has((abs(($(a).attr('href') || '').trim()) || '').split('#')[0])));
+  add('mixed', $('script[src],img[src],iframe[src],link[rel~="stylesheet"][href],source[src],video[src],audio[src]').get().filter((el) => /^http:\/\//i.test(($(el).attr('src') || $(el).attr('href') || '').trim())));
+  const findings = runChecks(page).map((x) => (x.severity !== 'pass' && evidence[x.id] ? { ...x, evidence: evidence[x.id] } : x));
   return {
     url: page.url, finalUrl: page.finalUrl, host: new URL(page.finalUrl).hostname.replace(/^www\./, ''),
-    title: page.title, score: score(findings), categories: categoryScores(findings), findings,
+    shot, shotAlt, title: page.title, score: score(findings), categories: categoryScores(findings), findings,
     stats: { responseMs: res.ms, htmlKb: Math.round(res.bytes / 1024), words: page.wordCount, images: imgs.length, links: internal + external, linksChecked: results.length, brokenLinks: broken.length, headings: headings.length },
     outline: headings.slice(0, 40),
   };
