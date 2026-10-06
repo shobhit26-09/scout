@@ -1,0 +1,45 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Audit report - Scout</title><meta name="robots" content="noindex"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/app.css"></head>
+<body><div id="nav"></div><main class="wrap" id="app"><div class="empty">Loading report...</div></main><div id="foot"></div>
+<script type="module">
+import {nav,foot,ring,ago,tone,color,esc,toast} from '/ui.js';
+document.getElementById('nav').innerHTML=nav;document.getElementById('foot').innerHTML=foot;
+const id=location.pathname.split('/').pop(),app=document.getElementById('app');
+const r=await fetch('/api/crawl/'+id);
+if(!r.ok){app.innerHTML='<div class="center"><h1>404</h1><p>That report does not exist.</p><a class="btn" href="/">Run an audit</a></div>'}
+else{const d=await r.json();document.title=`${d.host} scored ${d.score} - Scout`;render(d)}
+function render(d){
+ const order={critical:0,warning:1,info:2,pass:3};
+ const count=k=>d.findings.filter(x=>x.severity===k).length;
+ const cats=Object.entries(d.categories);
+ app.innerHTML=`
+ <div class="rhead">${ring(d.score)}
+  <div class="meta"><div class="crumb"><a href="/site/${esc(d.host)}">${esc(d.host)} history</a> / audited ${ago(d.createdAt)}</div>
+   <h1>${esc(d.title||d.host)}</h1><div class="u">${esc(d.finalUrl)}</div>
+   <div class="actions"><button class="btn" id="copy">Copy link</button><button class="btn ghost" id="again">Run again</button><a class="btn ghost" href="/site/${esc(d.host)}">History</a></div></div></div>
+ <div class="stats">
+  <div class="stat"><b>${d.stats.responseMs} ms</b><span>Response time</span></div>
+  <div class="stat"><b>${d.stats.htmlKb} KB</b><span>HTML size</span></div>
+  <div class="stat"><b>${d.stats.words}</b><span>Words</span></div>
+  <div class="stat"><b>${d.stats.linksChecked}</b><span>Links checked</span></div>
+  <div class="stat"><b>${d.stats.brokenLinks}</b><span>Broken links</span></div></div>
+ <div class="cats">${cats.map(([k,v])=>`<span class="cat">${k}<i class="s-${tone(v)}">${v}</i></span>`).join('')}</div>
+ <div class="toolbar"><div class="seg" id="seg"></div><span style="font-size:13px;color:var(--ink3)">Click a row for the fix</span></div>
+ <div id="groups"></div>
+ <div class="group"><h3>Heading outline</h3><div class="outline">${d.outline.length?d.outline.map(h=>`<div style="padding-left:${(h.level-1)*18}px"><small>H${h.level}</small>${esc(h.text||'(empty)')}</div>`).join(''):'No headings found.'}</div></div>`;
+ let filter='issues';
+ const tabs=[['issues','Issues',count('critical')+count('warning')+count('info')],['critical','Critical',count('critical')],['warning','Warnings',count('warning')],['info','Info',count('info')],['pass','Passed',count('pass')],['all','All',d.findings.length]];
+ const seg=document.getElementById('seg');
+ function draw(){
+  seg.innerHTML=tabs.map(([k,l,n])=>`<button data-k="${k}" class="${k===filter?'on':''}">${l}<em>${n}</em></button>`).join('');
+  seg.querySelectorAll('button').forEach(b=>b.onclick=()=>{filter=b.dataset.k;draw()});
+  const list=d.findings.filter(x=>filter==='all'||(filter==='issues'?x.severity!=='pass':x.severity===filter)).sort((a,b)=>order[a.severity]-order[b.severity]);
+  const by={};list.forEach(x=>(by[x.category]??=[]).push(x));
+  document.getElementById('groups').innerHTML=Object.keys(by).length?Object.entries(by).map(([c,items])=>`<div class="group"><h3>${c}</h3><div class="rows">${items.map(x=>`<div class="row"><button aria-expanded="false"><span class="t">${esc(x.title)}</span><span class="badge b-${x.severity}">${x.severity}</span><svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 3 5 5-5 5"/></svg></button><div class="det">${x.detail?`<pre>${esc(x.detail)}</pre>`:''}${x.fix?`<div class="fix"><b>Fix:</b> ${esc(x.fix)}</div>`:(x.detail?'':'Nothing to do here.')}</div></div>`).join('')}</div></div>`).join(''):'<div class="empty">Nothing in this view.</div>';
+  document.querySelectorAll('.row>button').forEach(b=>b.onclick=()=>{const r=b.parentElement;r.classList.toggle('open');b.setAttribute('aria-expanded',r.classList.contains('open'))});
+ }
+ draw();
+ document.getElementById('copy').onclick=async()=>{try{await navigator.clipboard.writeText(location.href);toast('Link copied')}catch{toast(location.href)}};
+ document.getElementById('again').onclick=async e=>{e.target.disabled=true;e.target.textContent='Running...';const r=await fetch('/api/crawl',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:d.url})});const j=await r.json();if(r.ok)location.href='/crawl/'+j.id;else{toast(j.error);e.target.disabled=false;e.target.textContent='Run again'}};
+}
+</script></body></html>
