@@ -85,6 +85,10 @@ app.get('/api/recent', wrap(async (_req, res) => res.json(await recent())));
 
 app.use(express.static(pub, { extensions: ['html'] }));
 const ogPng = Buffer.from(readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'og.b64'), 'utf8'), 'base64');
+const srcDir = path.dirname(fileURLToPath(import.meta.url));
+const icon = (f) => Buffer.from(readFileSync(path.join(srcDir, f), 'utf8'), 'base64');
+const icons = { '/favicon.png': icon('icon-48.b64'), '/favicon.ico': icon('icon-48.b64'), '/apple-touch-icon.png': icon('icon-180.b64') };
+for (const [route, buf] of Object.entries(icons)) app.get(route, (_req, res) => res.type('png').set('Cache-Control', 'public, max-age=86400').send(buf));
 app.get('/og.png', (_req, res) => res.type('png').set('Cache-Control', 'public, max-age=86400').send(ogPng));
 const reportHtml = readFileSync(path.join(pub, 'report.html'), 'utf8');
 const escA = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
