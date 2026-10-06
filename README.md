@@ -23,6 +23,10 @@ Checks are deterministic rules in [`src/checks.js`](src/checks.js). Each has a s
 - `src/server.js`: Express API plus static frontend. 6 audits per 10 minutes per IP.
 - `public/`: vanilla JS, no build step.
 
+## Trust verdict
+
+Every report shows Safe, Suspicious or High risk, with the evidence behind each flag. Signals: Google Safe Browsing (needs the optional `SAFE_BROWSING_KEY` env var, free Lookup API; skipped and noted when missing), domain age from RDAP, URL heuristics (risky TLDs, raw IPs, punycode, shorteners), and page heuristics (password forms, brand-name mismatch, urgency language, missing contact or privacy links). Whole-site crawls run Trust on the root page only.
+
 ## Whole-site crawl
 
 Choose "Whole site" on the home page. Scout reads robots.txt and sitemap.xml, follows same-origin links, and audits up to 50 pages one at a time (250 ms apart, 110 s cap). It saves one site report with an overall score, per-category scores, an issue roll-up and a per-page table. Crawls run as background jobs (two per visitor per 10 minutes, one at a time per server).
