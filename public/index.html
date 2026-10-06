@@ -3,10 +3,10 @@
 <meta name="description" content="Paste a URL and get a scored SEO, performance and accessibility audit with concrete fixes. Every report is saved at a shareable link.">
 <meta property="og:title" content="Scout - audit any website in seconds"><meta property="og:description" content="Scored SEO and performance checks with exact fixes, saved at a permalink.">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/app.css"></head>
-<body><div id="nav"></div>
+<body id="top"><div id="nav"></div>
 <main class="wrap">
 <header class="hero">
-  <span class="pill"><i></i>Free. No account needed.</span>
+  <span class="pill"><i></i>Free. No account. Open source.</span>
   <h1 class="display">See what your site is <em>missing.</em></h1>
   <p class="sub">Paste any URL. Scout reads it like a search engine does, scores it, and tells you exactly what to fix. Every report gets its own link.</p>
   <form class="go" id="f"><input id="u" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="yourwebsite.com" aria-label="Website URL" autofocus><button class="btn" id="b">Audit site <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></form>
@@ -15,30 +15,41 @@
   <div class="err" id="err" role="alert"></div>
   <div class="hint">Try <button type="button" data-u="stripe.com">stripe.com</button> <button type="button" data-u="stocksensee.netlify.app">stocksensee.netlify.app</button> <button type="button" data-u="example.com">example.com</button></div>
 
-  <div class="preview" aria-hidden="true">
-    <div class="pv-top"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="pv-url">scout / report / example.com</span></div>
-    <div class="pv-body">
-      <div class="ringbox" id="pvRing"></div>
-      <div>
-        <div class="rows" style="box-shadow:none">
-          <div class="row"><button tabindex="-1"><span class="t">Missing meta description</span><span class="badge b-critical">critical</span></button></div>
-          <div class="row"><button tabindex="-1"><span class="t">Title is long (74 chars)</span><span class="badge b-warning">warning</span></button></div>
-          <div class="row"><button tabindex="-1"><span class="t">3 of 12 images have no alt text</span><span class="badge b-warning">warning</span></button></div>
-          <div class="row"><button tabindex="-1"><span class="t">Open Graph tags complete</span><span class="badge b-pass">pass</span></button></div>
-          <div class="row"><button tabindex="-1"><span class="t">Served over HTTPS</span><span class="badge b-pass">pass</span></button></div>
-        </div>
-      </div>
-    </div>
-  </div>
+  <ul class="facts"><li><b>9</b> categories</li><li><b>80+</b> checks</li><li><b>Free</b> forever</li><li><b>0</b> sign-ups</li></ul>
 </header>
 
-<section class="block" id="how">
-  <h2 class="sec">Clear findings. Real fixes.</h2>
-  <p class="lede">No vague scores. Every check says what it found, why it matters, and the exact change to make.</p>
-  <div class="grid3">
-    <div class="feat"><div class="ico b"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="6"/><path d="m14 14 3.5 3.5"/></svg></div><h3>SEO and structure</h3><p>Titles, descriptions, headings, canonicals, Open Graph, structured data, sitemap and robots.txt.</p></div>
-    <div class="feat"><div class="ico g"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11a7 7 0 0 1 14 0"/><path d="m10 11 3.5-4"/></svg></div><h3>Speed and weight</h3><p>Response time, HTML size, compression, blocking scripts and redirect chains.</p></div>
-    <div class="feat"><div class="ico a"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12 5.5 14.5a2.8 2.8 0 0 1-4-4L4 8"/><path d="m12 8 2.5-2.5a2.8 2.8 0 0 1 4 4L16 12"/><path d="m7 13 6-6"/></svg></div><h3>Links and access</h3><p>Broken link detection, missing alt text, heading order, language and mobile viewport.</p></div>
+<section class="block" id="checks">
+  <h2 class="sec">Nine categories. One honest score.</h2>
+  <p class="lede">Every check says what it found, why it matters, and the exact change to make. Nothing is hidden behind a vague number.</p>
+  <div class="fgrid9"><div class="feat"><div class="ico b"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="6"/><path d="m14 14 3.5 3.5"/></svg></div><h3>SEO</h3><p>Titles, descriptions, headings, canonicals, structured data and sitemap.</p></div><div class="feat"><div class="ico g"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11a7 7 0 0 1 14 0"/><path d="m10 11 3.5-4"/></svg></div><h3>Performance</h3><p>Response time, page weight, compression, blocking scripts, redirects.</p></div><div class="feat"><div class="ico r"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5 16 5v5c0 3.5-2.5 6.3-6 7.5C6.5 16.3 4 13.5 4 10V5l6-2.5Z"/><path d="m7.5 10 2 2 3.5-4"/></svg></div><h3>Security</h3><p>HTTPS, security headers, mixed content, cookies and exposed files.</p></div><div class="feat"><div class="ico a"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="4.5" r="1.7"/><path d="M4 7.5c4 1.2 8 1.2 12 0M10 8v4m0 0-2.5 5M10 12l2.5 5"/></svg></div><h3>Accessibility</h3><p>Alt text, heading order, page language, labels and link text.</p></div><div class="feat"><div class="ico b"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2"/><path d="M10 3v3M10 14v3M3 10h3M14 10h3M5 5l2 2M13 13l2 2M15 5l-2 2M7 13l-2 2"/></svg></div><h3>Crawlability</h3><p>robots.txt, sitemaps, noindex rules, canonical conflicts.</p></div><div class="feat"><div class="ico g"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12 5.5 14.5a2.8 2.8 0 0 1-4-4L4 8"/><path d="m12 8 2.5-2.5a2.8 2.8 0 0 1 4 4L16 12"/><path d="m7 13 6-6"/></svg></div><h3>Links</h3><p>Broken links, redirect chains and unreachable internal pages.</p></div><div class="feat"><div class="ico a"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="8" height="15" rx="2"/><path d="M9 14.5h2"/></svg></div><h3>Mobile</h3><p>Viewport, tap targets, text sizing and horizontal overflow.</p></div><div class="feat"><div class="ico b"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="10" r="2"/><circle cx="14.5" cy="5" r="2"/><circle cx="14.5" cy="15" r="2"/><path d="m6.8 9 5.9-3M6.8 11l5.9 3"/></svg></div><h3>Social previews</h3><p>Open Graph and Twitter tags that control how links look when shared.</p></div><div class="feat t"><div class="ico k"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2.5 16 5v5c0 3.5-2.5 6.3-6 7.5C6.5 16.3 4 13.5 4 10V5l6-2.5Z"/><path d="M10 7v3.5M10 13v.01"/></svg></div><h3>Trust verdict</h3><p>Safe, Suspicious or High risk. Google Safe Browsing, domain age, lookalike URLs and scam-style page patterns.</p><small>Every flag shows its evidence.</small></div></div>
+</section>
+
+<section class="block" id="how-it-works">
+  <h2 class="sec">How it works</h2>
+  <p class="lede">Three steps, about ten seconds for a single page.</p>
+  <div class="how3">
+    <div><h3>Paste a URL</h3><p>Audit one page, or crawl a whole site of up to 50 pages. Scout checks robots.txt first and skips anything it is asked not to fetch.</p></div>
+    <div><h3>Scout reads it</h3><p>It fetches the page like a search engine, runs the checks, and looks the domain up against Google Safe Browsing and public registration data.</p></div>
+    <div><h3>Get fixes and a link</h3><p>You get a score out of 100, a Trust verdict, and a plain fix for every problem. The report lives at its own link you can share.</p></div>
+  </div>
+</section>
+
+<section class="block" id="sample">
+  <div class="sample">
+    <div class="copy">
+      <h2 class="sec">See a real report</h2>
+      <p class="lede" style="margin-bottom:20px">This is a live audit of stripe.com, pulled from the report itself. Open it to see every check, the fixes, and the page outline.</p>
+      <ul>
+        <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 10.5 4 4 8-9"/></svg>Score per category, sorted by what hurts most</li>
+        <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 10.5 4 4 8-9"/></svg>A fix written out for every finding</li>
+        <li><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 10.5 4 4 8-9"/></svg>Trust verdict with the evidence behind it</li>
+      </ul>
+      <a class="btn" href="/crawl/d155619f32">Open the full report <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+    </div>
+    <div class="card" id="sampleCard" aria-live="polite">
+      <div class="pv-top"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="pv-url">scout / report / stripe.com</span></div>
+      <div class="pv-body"><div class="sk" style="width:132px;height:132px;border-radius:50%"></div><div style="width:100%"><div class="sk" style="height:22px;width:60%"></div><div class="sk" style="height:14px;width:90%;margin-top:12px"></div><div class="sk" style="height:14px;width:70%;margin-top:8px"></div></div></div>
+    </div>
   </div>
 </section>
 
@@ -47,12 +58,36 @@
   <p class="lede">Public reports from other visitors.</p>
   <div class="recent" id="recentList"></div>
 </section>
+
+<section class="block" id="faq">
+  <h2 class="sec">Questions</h2>
+  <div class="faq" style="margin-top:26px">
+    <details><summary>Is Scout really free?</summary><p>Yes. No account, no trial, no paywall. Scout runs on free infrastructure, so it limits how many audits one visitor can run in ten minutes.</p></details>
+    <details><summary>What does it check?</summary><p>SEO, performance, security, accessibility, crawlability, links, mobile and social previews, plus a Trust verdict. Scroll up to "Nine categories" for the detail on each.</p></details>
+    <details><summary>How is the score calculated?</summary><p>Each category starts at 100. Critical problems take off the most, warnings less, and info notes a little. The overall score is the combined result. It is plain arithmetic, so the same page always gets the same score. Passed checks are listed too.</p></details>
+    <details><summary>What does the Trust verdict mean?</summary><p>It estimates how likely a site is to be a scam. It looks at Google Safe Browsing, how old the domain is, odd or lookalike URLs, and patterns like urgency language or password forms on thin pages. Safe means no signals were found, not a guarantee. Each flag shows its evidence.</p></details>
+    <details><summary>Do you store my reports?</summary><p>Yes. Each audit is saved so it can live at a shareable link, and recent audits are listed on this page. Scout stores the results, not visitor data, and does not use trackers. Do not audit anything you want kept private.</p></details>
+    <details><summary>Will it hit my site hard?</summary><p>No. Scout identifies itself as ScoutBot, follows robots.txt, and fetches one page at a time with a short pause between requests. Whole-site crawls stop at 50 pages.</p></details>
+    <details><summary>Can I see how it works?</summary><p>Scout is open source. <a href="https://github.com/shobhit26-09/scout" rel="noopener">Read the code on GitHub</a>.</p></details>
+  </div>
+</section>
+
+<section class="cta">
+  <h2>Find out what your site is missing.</h2>
+  <p>Paste a URL and get your report in seconds.</p>
+  <a class="btn" href="#top" id="ctaTop">Audit a site</a>
+</section>
 </main>
 <div id="foot"></div>
 <script type="module">
 import {nav,foot,ring,ago,tone,esc} from '/ui.js';
 document.getElementById('nav').innerHTML=nav;document.getElementById('foot').innerHTML=foot;
-document.getElementById('pvRing').innerHTML=ring(72);
+document.getElementById('ctaTop').onclick=e=>{e.preventDefault();scrollTo({top:0,behavior:'smooth'});setTimeout(()=>u.focus({preventScroll:true}),400)};
+fetch('/api/crawl/d155619f32').then(r=>r.json()).then(d=>{
+ const top=d.findings.filter(x=>x.severity!=='pass').slice(0,3),pick=top.length?top:d.findings.slice(0,3);
+ const tv=d.trust?{safe:['t-safe','Safe'],suspicious:['t-suspicious','Suspicious'],high:['t-high','High risk']}[d.trust.verdict]:null;
+ document.getElementById('sampleCard').innerHTML=`<div class="pv-top"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="pv-url">scout / report / ${esc(d.host)}</span></div><div class="pv-body">${ring(d.score)}<div><h3>${esc(d.host)}</h3>${tv?`<span class="trust ${tv[0]}">Trust: ${tv[1]}</span>`:''}<div class="cats">${Object.entries(d.categories).sort((x,y)=>x[1]-y[1]).slice(0,5).map(([k,v])=>`<span class="cat">${esc(k)}<i class="s-${tone(v)}">${v}</i></span>`).join('')}</div></div></div><div class="rows">${pick.map(x=>`<div class="row"><button tabindex="-1" type="button"><span class="t">${esc(x.title)}</span><span class="badge b-${x.severity}">${x.severity}</span></button></div>`).join('')}</div>`;
+}).catch(()=>{document.getElementById('sample').hidden=true});
 const f=document.getElementById('f'),u=document.getElementById('u'),b=document.getElementById('b'),err=document.getElementById('err'),steps=document.getElementById('steps'),st=document.getElementById('stepTxt');
 const q=new URLSearchParams(location.search).get('u');if(q)u.value=q;
 document.querySelectorAll('[data-u]').forEach(x=>x.onclick=()=>{u.value=x.dataset.u;f.requestSubmit()});
