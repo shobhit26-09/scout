@@ -8,6 +8,10 @@ const id=location.pathname.split('/').pop(),app=document.getElementById('app');
 const r=await fetch('/api/crawl/'+id);
 if(!r.ok){app.innerHTML='<div class="center"><h1>404</h1><p>That report does not exist.</p><a class="btn" href="/">Run an audit</a></div>'}
 else{const d=await r.json();document.title=`${d.host} scored ${d.score} - Scout`;d.type==='site'?renderSite(d):render(d)}
+function tbadge(d){const t=d.trust;if(!t)return '';const L={safe:'Safe',suspicious:'Suspicious',high:'High risk'}[t.verdict];
+ const why={safe:'No scam signals found.',suspicious:'Some warning signs. Check before you pay or log in.',high:'Strong scam or malware signals. Do not enter data here.'}[t.verdict];
+ const sb=t.safeBrowsing==='unavailable'?' Blacklist check unavailable.':'';
+ return `<div class="trust t-${t.verdict}"><span class="td"></span><b>Trust: ${L}</b><span class="tw">${why}${sb}</span></div>`}
 function dl(n){return `<b class="${n>0?'up':n<0?'down':'flat'}">${n>0?'+':''}${n}</b>`}
 function diff(d){
  const p=d.previous;if(!p)return '';
@@ -18,7 +22,7 @@ function renderSite(d){
  app.innerHTML=`
  <div class="rhead">${ring(d.score)}
   <div class="meta"><div class="crumb"><a href="/site/${esc(d.host)}">${esc(d.host)} history</a> / whole-site crawl ${ago(d.createdAt)}</div>
-   <h1>${esc(d.host)}</h1><div class="u">${s.pages} page${s.pages>1?'s':''} audited in ${s.seconds}s${s.sitemap?` &middot; sitemap lists ${s.sitemap}`:''}</div>
+   <h1>${esc(d.host)}</h1><div class="u">${s.pages} page${s.pages>1?'s':''} audited in ${s.seconds}s${s.sitemap?` &middot; sitemap lists ${s.sitemap}`:''}</div>${tbadge(d)}
    <div class="actions"><button class="btn" id="copy">Copy link</button><a class="btn ghost" href="/?u=${encodeURIComponent(d.host)}">Crawl again</a><a class="btn ghost" href="/site/${esc(d.host)}">History</a></div></div></div>
  ${d.capped?`<div class="capnote">Stopped at the ${esc(d.capped)} (${d.limits.pages} pages, ${d.limits.seconds}s) so this is a partial crawl. Scores cover the pages that were audited.</div>`:''}
  <div class="stats">
@@ -46,7 +50,7 @@ function render(d){
  app.innerHTML=`
  <div class="rhead">${ring(d.score)}
   <div class="meta"><div class="crumb"><a href="/site/${esc(d.host)}">${esc(d.host)} history</a> / audited ${ago(d.createdAt)}</div>
-   <h1>${esc(d.title||d.host)}</h1><div class="u">${esc(d.finalUrl)}</div>
+   <h1>${esc(d.title||d.host)}</h1><div class="u">${esc(d.finalUrl)}</div>${tbadge(d)}
    <div class="actions"><button class="btn" id="copy">Copy link</button><button class="btn ghost" id="again">Run again</button><a class="btn ghost" href="/site/${esc(d.host)}">History</a></div></div></div>
  ${d.shot?`<figure class="shot" id="shotf"><img src="${esc(d.shot)}" alt="Screenshot of ${esc(d.host)}" loading="lazy" referrerpolicy="no-referrer"><figcaption>Screenshot of the page at audit time, via a free screenshot service</figcaption></figure>`:''}
  <div class="stats">
