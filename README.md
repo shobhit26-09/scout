@@ -19,7 +19,7 @@ Checks are deterministic rules in [`src/checks.js`](src/checks.js). Each has a s
 
 - `src/safe-fetch.js`: server-side fetch with a 10s timeout, 2 MB body cap, manual redirects, and SSRF protection (every hop is resolved and private/loopback addresses are refused).
 - `src/crawler.js`: obeys robots.txt for the audited page, parses HTML with cheerio, checks links politely (5 at a time, small delay), looks for a sitemap.
-- `src/db.js`: reports stored in SQLite (`node:sqlite`, built into Node 22.13+).
+- `src/db.js`: reports stored in Supabase (Postgres over REST) when `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` are set, otherwise in local SQLite (`node:sqlite`, Node 22.13+).
 - `src/server.js`: Express API plus static frontend. 6 audits per 10 minutes per IP.
 - `public/`: vanilla JS, no build step.
 
@@ -31,11 +31,11 @@ npm start     # http://localhost:3000
 npm test
 ```
 
-Set `DB_PATH` to change where the SQLite file lives. Requires Node 22.13 or newer.
+Without Supabase env vars, reports go to a local SQLite file; set `DB_PATH` to change where it lives. Requires Node 22.13 or newer.
 
 ## Deploy
 
-`render.yaml` is included for Render's free tier. Note that free instances sleep when idle and have an ephemeral disk, so saved reports reset on redeploy. Point `DB_PATH` at a persistent disk or swap `src/db.js` for a hosted database to keep history long term.
+`render.yaml` is included for Render's free tier. Free instances sleep when idle and have an ephemeral disk, so production uses Supabase to keep permalinks and history across restarts. Create the table with `supabase/schema.sql`, keep RLS on with no public policies, and set `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` (service role, server only) in the Render dashboard. Never commit the key.
 
 ## Limits
 
