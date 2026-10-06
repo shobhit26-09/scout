@@ -55,7 +55,9 @@ const whereIs = ($, el) => {
   return bits.slice(-2).join(' > ') || 'page body';
 };
 
-export async function crawl(inputUrl, onStep = () => {}) {
+export { parseRobots };
+export async function crawl(inputUrl, onStep = () => {}, opts = {}) {
+  const fast = !!opts.fast; // site-crawl mode: no screenshot, no link probing, shared robots/sitemap
   let raw = inputUrl.trim();
   if (!/^https?:\/\//i.test(raw)) raw = 'https://' + raw;
   const target = await assertPublicUrl(raw);
@@ -64,12 +66,16 @@ export async function crawl(inputUrl, onStep = () => {}) {
   // Warm the render now, fire and forget, so the image is ready by the time the report opens.
   const shot = `https://image.thum.io/get/width/1200/crop/800/${target.href}`;
   const shotAlt = `https://s0.wp.com/mshots/v1/${encodeURIComponent(target.href)}?w=1200`;
-  for (const u of [shot, shotAlt]) fetch(u, { signal: AbortSignal.timeout(8000) }).then((r) => r.body?.cancel()).catch(() => {});
+  if (!fast) for (const u of [shot, shotAlt]) fetch(u, { signal: AbortSignal.timeout(8000) }).then((r) => r.body?.cancel()).catch(() => {});
 
   onStep('Reading robots.txt');
-  const robotsRes = await safeFetch(origin + '/robots.txt').catch(() => null);
-  const robotsFound = !!robotsRes && robotsRes.status === 200 && !/<html/i.test(robotsRes.body.slice(0, 300));
-  const robots = robotsFound ? parseRobots(robotsRes.body) : { allowed: () => true, sitemaps: [], blocksAll: false };
+  let robotsFound, robots;
+  if (opts.robots) ({ robotsFound, robots } = opts.robots);
+  else {
+    const robotsRes = await safeFetch(origin + '/robots.txt').catch(() => null);
+    robotsFound = !!robotsRes && robotsRes.status === 200 && !/<html/i.test(robotsRes.body.slice(0, 300));
+    robots = robotsFound ? parseRobots(robotsRes.body) : { allowed: () => true, sitemaps: [], blocksAll: false };
+  }
   if (!robots.allowed(target.pathname)) throw new Error('This site\'s robots.txt asks crawlers like ScoutBot not to fetch that page, so we left it alone.');
 
   onStep('Fetching the page');
@@ -113,15 +119,15 @@ export async function crawl(inputUrl, onStep = () => {}) {
   // sitemap
   onStep('Looking for a sitemap');
   const smCandidates = [...robots.sitemaps, origin + '/sitemap.xml'];
-  let sitemap = { found: false };
-  for (const s of smCandidates.slice(0, 3)) {
+  let sitemap = opts.sitemap || { found: false };
+  if (!opts.sitemap) for (const s of smCandidates.slice(0, 3)) {
     const r = await safeFetch(s).catch(() => null);
     if (r && r.status === 200 && /<(urlset|sitemapindex)/i.test(r.body)) { sitemap = { found: true, url: s, urls: (r.body.match(/<loc>/gi) || []).length }; break; }
   }
 
   // broken links
   onStep('Checking links');
-  const toCheck = [...hrefs.keys()].filter((u) => robots.allowed(new URL(u).pathname) || new URL(u).origin !== origin).slice(0, MAX_LINK_CHECKS);
+  const toCheck = fast ? [] : [...hrefs.keys()].filter((u) => robots.allowed(new URL(u).pathname) || new URL(u).origin !== origin).slice(0, MAX_LINK_CHECKS);
   const results = [];
   const queue = [...toCheck];
   await Promise.all(Array.from({ length: 5 }, async () => {
@@ -154,7 +160,7 @@ export async function crawl(inputUrl, onStep = () => {}) {
     h1: $('h1').map((_, el) => text(el)).get().filter(Boolean), headings, headingSkips,
     images: { total: imgs.length, missingAlt: missing.length, missingSamples: missing.slice(0, 3).map((i) => ($(i).attr('src') || '').split('/').pop().slice(0, 40)), noDimensions: imgs.filter((i) => !($(i).attr('width') && $(i).attr('height'))).length, lazy: imgs.filter((i) => $(i).attr('loading') === 'lazy').length },
     links: { internal, external, empty, nonDescriptive: vague },
-    brokenLinks: { checked: results.length, broken },
+    brokenLinks: fast ? null : { checked: results.length, broken },
     scripts: { total: $('script[src]').length, blocking: headEls.filter((s) => !$(s).attr('defer') && !$(s).attr('async') && $(s).attr('type') !== 'module').length },
     wordCount: bodyText ? bodyText.split(' ').length : 0, bytes: res.bytes, timing: { ttfbMs: res.ms },
     robotsTxt: { found: robotsFound, blocksAll: robots.blocksAll }, sitemap,
@@ -178,7 +184,9 @@ export async function crawl(inputUrl, onStep = () => {}) {
   add('broken', linkEls.filter((a) => brokenSet.has((abs(($(a).attr('href') || '').trim()) || '').split('#')[0])));
   add('mixed', $('script[src],img[src],iframe[src],link[rel~="stylesheet"][href],source[src],video[src],audio[src]').get().filter((el) => /^http:\/\//i.test(($(el).attr('src') || $(el).attr('href') || '').trim())));
   const findings = runChecks(page).map((x) => (x.severity !== 'pass' && evidence[x.id] ? { ...x, evidence: evidence[x.id] } : x));
+  const internalLinks = fast ? [...hrefs.keys()].filter((u) => { try { const x = new URL(u); return x.hostname.replace(/^www\./, '') === baseHost && !/\.(pdf|zip|png|jpe?g|gif|svg|webp|mp4|css|js|xml|ico|woff2?)$/i.test(x.pathname); } catch { return false; } }).slice(0, 300) : undefined;
   return {
+    internalLinks,
     url: page.url, finalUrl: page.finalUrl, host: new URL(page.finalUrl).hostname.replace(/^www\./, ''),
     shot, shotAlt, title: page.title, score: score(findings), categories: categoryScores(findings), findings,
     stats: { responseMs: res.ms, htmlKb: Math.round(res.bytes / 1024), words: page.wordCount, images: imgs.length, links: internal + external, linksChecked: results.length, brokenLinks: broken.length, headings: headings.length },
