@@ -137,7 +137,7 @@ export function runChecks(p) {
 
 const WEIGHT = { critical: 12, warning: 5, info: 1.5, pass: 0 };
 export function score(findings) {
-  const loss = findings.reduce((s, x) => s + WEIGHT[x.severity], 0);
+  const loss = findings.reduce((s, x) => s + (x.neutral ? 0 : WEIGHT[x.severity]), 0);
   return Math.max(0, Math.min(100, Math.round(100 - loss)));
 }
 export function categoryScores(findings) {
