@@ -7,12 +7,38 @@ document.getElementById('nav').innerHTML=nav;document.getElementById('foot').inn
 const id=location.pathname.split('/').pop(),app=document.getElementById('app');
 const r=await fetch('/api/crawl/'+id);
 if(!r.ok){app.innerHTML='<div class="center"><h1>404</h1><p>That report does not exist.</p><a class="btn" href="/">Run an audit</a></div>'}
-else{const d=await r.json();document.title=`${d.host} scored ${d.score} - Scout`;render(d)}
+else{const d=await r.json();document.title=`${d.host} scored ${d.score} - Scout`;d.type==='site'?renderSite(d):render(d)}
 function dl(n){return `<b class="${n>0?'up':n<0?'down':'flat'}">${n>0?'+':''}${n}</b>`}
 function diff(d){
  const p=d.previous;if(!p)return '';
  const rows=Object.entries(d.categories).map(([k,v])=>[k,p.categories[k],v]).filter(([,a])=>a!==undefined);
  return `<div class="diff"><div class="dh"><span>Since your last audit <a href="/crawl/${p.id}">${ago(p.createdAt)}</a></span><span class="dtot">Score ${p.score} &rarr; ${d.score} ${dl(d.score-p.score)}</span></div><div class="dc">${rows.map(([k,a,v])=>`<span class="dchip">${k} ${a} &rarr; ${v} ${dl(v-a)}</span>`).join('')}</div></div>`}
+function renderSite(d){
+ const cats=Object.entries(d.categories),s=d.stats;
+ app.innerHTML=`
+ <div class="rhead">${ring(d.score)}
+  <div class="meta"><div class="crumb"><a href="/site/${esc(d.host)}">${esc(d.host)} history</a> / whole-site crawl ${ago(d.createdAt)}</div>
+   <h1>${esc(d.host)}</h1><div class="u">${s.pages} page${s.pages>1?'s':''} audited in ${s.seconds}s${s.sitemap?` &middot; sitemap lists ${s.sitemap}`:''}</div>
+   <div class="actions"><button class="btn" id="copy">Copy link</button><a class="btn ghost" href="/?u=${encodeURIComponent(d.host)}">Crawl again</a><a class="btn ghost" href="/site/${esc(d.host)}">History</a></div></div></div>
+ ${d.capped?`<div class="capnote">Stopped at the ${esc(d.capped)} (${d.limits.pages} pages, ${d.limits.seconds}s) so this is a partial crawl. Scores cover the pages that were audited.</div>`:''}
+ <div class="stats">
+  <div class="stat"><b>${s.pages}</b><span>Pages audited</span></div>
+  <div class="stat"><b style="color:var(--red)">${s.critical}</b><span>Critical issues</span></div>
+  <div class="stat"><b style="color:var(--amber)">${s.warning}</b><span>Warnings</span></div>
+  <div class="stat"><b>${s.info}</b><span>Info</span></div>
+  <div class="stat"><b>${s.skipped}</b><span>Skipped</span></div></div>
+ <div class="cats">${cats.map(([k,v])=>`<span class="cat">${k}<i class="s-${tone(v)}">${v}</i></span>`).join('')}</div>
+ ${diff(d)}
+ <h2 class="sec2" style="font-size:20px;margin:34px 0 4px">${s.critical} critical, ${s.warning} warnings across ${s.pages} pages</h2>
+ <p class="sub2" style="color:var(--ink3);font-size:14px;margin:0 0 14px">Each row is one kind of issue, with how many pages it affects.</p>
+ <div class="group"><div class="rows">${d.issues.map(x=>`<div class="row"><button aria-expanded="false"><span class="t">${esc(x.title)} <span style="color:var(--ink3);font-weight:450">on ${x.pages} page${x.pages>1?'s':''}</span></span><span class="badge b-${x.severity}">${x.severity}</span><svg class="chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 3 5 5-5 5"/></svg></button><div class="det"><pre>${esc(x.category)}. Examples: ${esc(x.sample.join(', '))}</pre>${x.fix?`<div class="fix"><b>Fix:</b> ${esc(x.fix)}</div>`:''}</div></div>`).join('')||'<div class="empty">No issues found.</div>'}</div></div>
+ <h2 class="sec2" style="font-size:20px;margin:34px 0 14px">Pages, lowest score first</h2>
+ <div class="pages">${d.pages.map(p=>`<a class="prow" href="/?u=${encodeURIComponent(p.url)}"><div class="sc s-${tone(p.score)}">${p.score}</div><div class="m"><b>${esc(p.title||p.path)}</b><span>${esc(p.path)}</span></div><div class="n"><i style="color:var(--red)">${p.counts.critical}</i> / <i style="color:var(--amber)">${p.counts.warning}</i> / ${p.counts.info}</div></a>`).join('')}</div>
+ <p style="color:var(--ink3);font-size:13px;margin-top:10px">Counts are critical / warnings / info. Click a page to run its full audit.</p>
+ ${d.skipped.length?`<div class="group"><h3>Skipped</h3><div class="outline">${d.skipped.map(x=>`<div>${esc(x.path)} <small>${esc(x.reason)}</small></div>`).join('')}</div></div>`:''}`;
+ document.querySelectorAll('.row>button').forEach(b=>b.onclick=()=>{const r=b.parentElement;r.classList.toggle('open');b.setAttribute('aria-expanded',r.classList.contains('open'))});
+ document.getElementById('copy').onclick=async()=>{try{await navigator.clipboard.writeText(location.href);toast('Link copied')}catch{toast(location.href)}};
+}
 function render(d){
  const order={critical:0,warning:1,info:2,pass:3};
  const count=k=>d.findings.filter(x=>x.severity===k).length;
