@@ -1,4 +1,5 @@
 import express from 'express';
+import { nav, foot } from '../public/ui.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { crawl } from './crawler.js';
@@ -83,7 +84,14 @@ app.get('/api/site/:host', wrap(async (req, res) => {
 }));
 app.get('/api/recent', wrap(async (_req, res) => res.json(await recent())));
 
-app.use(express.static(pub, { extensions: ['html'] }));
+// Serve key discovery content and navigation in the initial HTML, not only after JS.
+const marketing = { '/': 'index.html', '/how-it-works': 'how-it-works.html', '/web-crawler': 'web-crawler.html' };
+for (const [route, file] of Object.entries(marketing)) {
+  const html = readFileSync(path.join(pub, file), 'utf8').replace('<div id="nav"></div>', `<div id="nav">${nav}</div>`).replace('<div id="foot"></div>', `<div id="foot">${foot}</div>`);
+  app.get(route, (_req, res) => res.type('html').set('Cache-Control', 'public, max-age=0, must-revalidate').send(html));
+  app.get('/' + file, (_req, res) => res.redirect(301, route));
+}
+app.use(express.static(pub, { extensions: ['html'], maxAge: '1h', setHeaders(res, file) { if (file.endsWith('.html')) res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate'); } }));
 const ogPng = Buffer.from(readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'og.b64'), 'utf8'), 'base64');
 const srcDir = path.dirname(fileURLToPath(import.meta.url));
 const icon = (f) => Buffer.from(readFileSync(path.join(srcDir, f), 'utf8'), 'base64');
