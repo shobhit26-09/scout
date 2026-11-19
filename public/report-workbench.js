@@ -1,10 +1,10 @@
 import { esc } from './ui.js';
-import { actionableFindings, readPlan, writePlan, filterPlan, planMarkdown } from './action-plan.js';
+import { actionableFindings, readPlan, writePlan, filterPlan, planMarkdown, planBackup, parsePlanBackup, restorePlanBackup, planKey, MAX_PLAN_BACKUP_BYTES } from './action-plan.js';
 
 export function mountWorkbench(app, report) {
   const findings = actionableFindings(report);
   const stored = readPlan({ getItem: key => localStorage.getItem(key) }, report);
-  let items = stored.items, warning = stored.error, limit = 6;
+  let items = stored.items, warning = stored.error, limit = 6, pendingBackup = null, importVersion = 0;
   const filters = { query: '', severity: 'all', status: 'all', category: 'all' };
   const section = document.createElement('section');
   section.className = 'workbench'; section.setAttribute('aria-labelledby', 'plan-title');
@@ -12,6 +12,7 @@ export function mountWorkbench(app, report) {
   app.insertBefore(section, anchor || null);
   const next = findings.find(item => (items[item.id]?.status || 'todo') !== 'verify');
   section.innerHTML = `<div class="plan-heading"><div><p class="plan-kicker">YOUR FIX WORKBENCH</p><h2 id="plan-title">${findings.length ? 'Turn the audit into a plan.' : 'A clean result. Keep checking.'}</h2><p>Choose a fix, record your progress, then run a fresh audit. Your original score never changes when you tick a box.</p></div><div class="plan-actions"><button type="button" class="btn ghost" id="plan-download">Download action plan</button>${report.type === 'site' ? `<a class="btn" href="/?u=${encodeURIComponent(report.url || report.host)}">Recheck this site</a>` : '<button type="button" class="btn" id="plan-recheck">Recheck this page</button>'}</div></div>
+  <div class="plan-backup-controls"><button type="button" class="btn ghost" id="plan-backup">Back up fix progress</button><label class="btn ghost plan-restore-label">Restore fix progress<input type="file" accept=".json,application/json" aria-label="Choose Scout fix-plan backup" id="plan-restore"></label><p>Backups include private notes and are not encrypted. Restore them on this same report. They do not preserve the hosted report itself.</p></div><p id="plan-backup-message" role="status"></p><p id="plan-backup-error" role="alert"></p><div id="plan-restore-review" class="plan-restore-review" hidden tabindex="-1"></div>
   <div class="plan-progress" id="plan-progress"></div>
   ${next ? `<div class="plan-next"><span>START HERE · ${esc(next.severity.toUpperCase())}</span><h3>${esc(next.title)}</h3><p>${esc(next.fix)}</p><a href="#plan-list">Work through the findings ↓</a></div>` : ''}
   ${report.previous?.changes ? `<div class="plan-comparison"><h3>What changed since the previous audit?</h3><div><b>${report.previous.changes.cleared}</b> not found on this run <b>${report.previous.changes.introduced}</b> newly found <b>${report.previous.changes.persisting}</b> still present</div><p>Compared with the same URL and audit type. A missing finding is not a guarantee that a site is secure or accessible.</p></div>` : ''}
@@ -51,6 +52,36 @@ export function mountWorkbench(app, report) {
   get('plan-reset').onclick = () => { Object.assign(filters, { query: '', severity: 'all', status: 'all', category: 'all' }); for (const key of ['search', 'severity', 'status', 'category']) get(`plan-${key}`).value = key === 'search' ? '' : 'all'; limit = 6; draw(); };
   get('plan-more').onclick = () => { limit += 6; draw(); };
   get('plan-download').onclick = () => { const url = URL.createObjectURL(new Blob([planMarkdown(report, findings, items)], { type: 'text/markdown;charset=utf-8' })); const a = document.createElement('a'); a.href = url; a.download = `scout-action-plan-${String(report.id).replace(/[^a-z0-9-]/gi, '')}.md`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); };
+  const storage = { getItem: key => localStorage.getItem(key), setItem: (key, value) => localStorage.setItem(key, value) };
+  function backupError(error) { get('plan-backup-error').textContent = error?.name === 'QuotaExceededError' ? 'Browser storage is full. The backup was not restored. Your current plan is unchanged; download a copy before leaving.' : error?.name === 'SecurityError' ? 'Browser storage is unavailable. The backup was not restored. Your current plan is unchanged.' : error.message || 'Could not finish. Your current plan is unchanged.'; }
+  get('plan-backup').onclick = () => {
+    get('plan-backup-error').textContent = '';
+    try {
+      const raw = planBackup(report, items), url = URL.createObjectURL(new Blob([raw], { type: 'application/json' }));
+      const a = document.createElement('a'); a.href = url; a.download = `scout-fix-plan-${String(report.id).replace(/[^a-z0-9-]/gi, '')}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+      get('plan-backup-message').textContent = 'Fix-progress backup downloaded. It includes private notes and is not encrypted. Keep the original report link too.';
+    } catch (error) { backupError(error); }
+  };
+  get('plan-restore').onchange = async event => {
+    const file = event.target.files?.[0]; event.target.value = ''; if (!file) return;
+    const version = ++importVersion; pendingBackup = null; get('plan-restore-review').hidden = true; get('plan-backup-message').textContent = ''; get('plan-backup-error').textContent = '';
+    try {
+      if (file.size > MAX_PLAN_BACKUP_BYTES) throw new Error('Choose a Scout fix-plan backup no larger than 1 MB.');
+      const nextItems = parsePlanBackup(await file.text(), report);
+      if (version !== importVersion) return;
+      pendingBackup = { items: nextItems, expectedRaw: storage.getItem(planKey(report)) };
+      const count = Object.keys(nextItems).length, noted = Object.values(nextItems).filter(item => item.note).length;
+      const review = get('plan-restore-review');
+      review.innerHTML = `<h3>Replace progress for this report?</h3><p>This backup contains ${count} saved finding entries and ${noted} notes for report ${esc(report.id)}. It replaces the entire progress and note list for this audit, including entries not in the backup. Original findings, evidence and score do not change.</p><p>Download your current progress first if you want to keep it. Restored statuses are manually tracked, not verified fixes.</p><div><button type="button" class="btn ghost" id="plan-restore-cancel">Cancel restore</button><button type="button" class="btn" id="plan-restore-confirm">Replace fix progress</button></div>`;
+      review.hidden = false; review.focus({ preventScroll: true }); review.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      get('plan-restore-cancel').onclick = () => { importVersion++; pendingBackup = null; review.hidden = true; get('plan-backup-message').textContent = 'Restore canceled. No progress or notes were replaced.'; };
+      get('plan-restore-confirm').onclick = () => {
+        if (!pendingBackup) return;
+        try { const next = restorePlanBackup(storage, report, pendingBackup.items, pendingBackup.expectedRaw); items = next; pendingBackup = null; warning = ''; review.hidden = true; showProgress(); draw(); get('plan-backup-error').textContent = ''; get('plan-backup-message').textContent = 'Fix progress restored on this device. Findings and score are unchanged. Run a fresh audit to check the fixes.'; }
+        catch (error) { backupError(error); }
+      };
+    } catch (error) { if (version === importVersion) backupError(error); }
+  };
   let running = false;
   async function recheck() {
     if (running) return;
@@ -70,4 +101,4 @@ export function mountWorkbench(app, report) {
   const evidence = document.createElement('h2'); evidence.className = 'plan-evidence-title'; evidence.textContent = 'Full audit evidence';
   section.after(evidence);
   showProgress(); draw();
-}
+        }
