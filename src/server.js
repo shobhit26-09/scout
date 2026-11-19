@@ -13,7 +13,7 @@ const app = express();
 const disposablePreview = process.env.SCOUT_DISPOSABLE_PREVIEW === '1';
 export function previewHtml(html, enabled = disposablePreview) {
   if (!enabled) return html;
-  return html.replace('<body>', '<body><aside role="note" style="padding:14px 20px;background:#fff4d6;color:#4a3500;border-bottom:1px solid #d8c180;font:13px/1.6 system-ui;text-align:center"><b>Temporary review preview.</b> Reports may disappear when this free service sleeps or restarts. Links to reports can be viewed by anyone who has them. Do not submit private or sensitive URLs. Download your action plan before leaving.</aside>');
+  return html.replace(/<body\b[^>]*>/i, tag => tag + '<aside role="note" style="padding:14px 20px;background:#fff4d6;color:#4a3500;border-bottom:1px solid #d8c180;font:13px/1.6 system-ui;text-align:center"><b>Temporary review preview.</b> Reports may disappear when this free service sleeps or restarts. Links to reports can be viewed by anyone who has them. Do not submit private or sensitive URLs. Download your action plan before leaving.</aside>');
 }
 
 const pub = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
