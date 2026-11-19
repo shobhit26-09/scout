@@ -38,7 +38,7 @@ export function filterPlan(findings, items, { query = '', severity = 'all', stat
 const quote = value => String(value).split('\n').map(line => `> ${line}`).join('\n');
 export function planMarkdown(report, findings, items) {
   const labels = { todo: 'To do', working: 'In progress', verify: 'Ready to recheck' };
-  const lines = ['# Scout action plan', '', `Report: ${report.id}`, `Site: ${report.url}`, `Audit score: ${report.score}/100`, '', 'Progress is manually recorded on this device, not a verified fix. Run a new audit to check the result. Shared report links do not include this progress or your notes.', ''];
+  const lines = ['# Scout action plan', '', `Report: ${report.id}`, `Site: ${report.url}`, `Audit score: ${report.score}/100 | Ruleset: ${report.rulesetVersion || 1}`, "Priorities are Scout's review prompts, not confirmed business impact, a ranking prediction or a security certification.", '', 'Progress is manually recorded on this device, not a verified fix. Run a new audit to check the result. Shared report links do not include this progress or your notes.', ''];
   for (const [i, item] of findings.entries()) {
     const entry = items[item.id] || { status: 'todo', note: '' };
     lines.push(`## ${i + 1}. ${item.severity.toUpperCase()} | ${labels[entry.status]}`, '', quote(item.title), '', `Category: ${item.category} | Affected pages: ${item.pages}`, '', 'Suggested fix:', quote(item.fix), '', 'Audit evidence:', quote(item.detail || 'See the saved report.'), '');
@@ -53,7 +53,7 @@ function comparableUrl(report) {
 }
 export function comparableReports(previous, current) {
   const url = comparableUrl(previous);
-  return Boolean(url && url === comparableUrl(current) && (previous.type === 'site') === (current.type === 'site'));
+  return Boolean((previous.rulesetVersion || 1) === (current.rulesetVersion || 1) && url && url === comparableUrl(current) && (previous.type === 'site') === (current.type === 'site'));
 }
 export function compareFindings(previous, current) {
   if (!comparableReports(previous, current)) return null;
@@ -98,4 +98,4 @@ export function restorePlanBackup(storage, report, items, expectedRaw) {
   const safeItems = checkedPlanItems(items, report);
   storage.setItem(planKey(report), JSON.stringify({ version: 1, items: safeItems }));
   return safeItems;
-}
+      }
