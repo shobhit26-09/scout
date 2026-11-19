@@ -10,11 +10,18 @@ import { readFileSync } from 'node:fs';
 import { saveCrawl, getCrawl, hostHistory, recent } from './db.js';
 
 const app = express();
+const disposablePreview = process.env.SCOUT_DISPOSABLE_PREVIEW === '1';
+export function previewHtml(html, enabled = disposablePreview) {
+  if (!enabled) return html;
+  return html.replace('<body>', '<body><aside role="note" style="padding:14px 20px;background:#fff4d6;color:#4a3500;border-bottom:1px solid #d8c180;font:13px/1.6 system-ui;text-align:center"><b>Temporary review preview.</b> Reports may disappear when this free service sleeps or restarts. Links to reports can be viewed by anyone who has them. Do not submit private or sensitive URLs. Download your action plan before leaving.</aside>');
+}
+
 const pub = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public');
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
 app.use(express.json({ limit: '10kb' }));
 app.use((req, res, next) => {
+  if (disposablePreview) res.set('X-Robots-Tag', 'noindex, nofollow');
   res.set({ 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin', 'X-Frame-Options': 'SAMEORIGIN' });
   next();
 });
@@ -89,7 +96,7 @@ app.get('/api/recent', wrap(async (_req, res) => res.json(await recent())));
 const marketing = { '/': 'index.html', '/how-it-works': 'how-it-works.html', '/web-crawler': 'web-crawler.html' };
 for (const [route, file] of Object.entries(marketing)) {
   const html = readFileSync(path.join(pub, file), 'utf8').replace('<div id="nav"></div>', `<div id="nav">${nav}</div>`).replace('<div id="foot"></div>', `<div id="foot">${foot}</div>`);
-  app.get(route, (_req, res) => res.type('html').set('Cache-Control', 'public, max-age=0, must-revalidate').send(html));
+  app.get(route, (_req, res) => res.type('html').set('Cache-Control', 'public, max-age=0, must-revalidate').send(previewHtml(html)));
   app.get('/' + file, (_req, res) => res.redirect(301, route));
 }
 app.use(express.static(pub, { extensions: ['html'], maxAge: '1h', setHeaders(res, file) { if (file.endsWith('.html')) res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate'); } }));
@@ -99,7 +106,7 @@ const icon = (f) => Buffer.from(readFileSync(path.join(srcDir, f), 'utf8'), 'bas
 const icons = { '/favicon.png': icon('icon-48.b64'), '/favicon.ico': icon('icon-48.b64'), '/apple-touch-icon.png': icon('icon-180.b64') };
 for (const [route, buf] of Object.entries(icons)) app.get(route, (_req, res) => res.type('png').set('Cache-Control', 'public, max-age=86400').send(buf));
 app.get('/og.png', (_req, res) => res.type('png').set('Cache-Control', 'public, max-age=86400').send(ogPng));
-const reportHtml = readFileSync(path.join(pub, 'report.html'), 'utf8');
+const reportHtml = previewHtml(readFileSync(path.join(pub, 'report.html'), 'utf8'));
 const escA = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export function shareTags(r, base, id) {
   const T = { safe: 'Trust: Safe', suspicious: 'Trust: Suspicious', high: 'Trust: High risk' }[r.trust?.verdict];
@@ -117,7 +124,7 @@ app.get('/crawl/:id', async (req, res) => {
   } catch { /* fall back to the plain page */ }
   res.type('html').send(html);
 });
-app.get('/site/:host', (_req, res) => res.sendFile(path.join(pub, 'site.html')));
+app.get('/site/:host', (_req, res) => res.type('html').send(previewHtml(readFileSync(path.join(pub, 'site.html'), 'utf8'))));
 app.use((_req, res) => res.status(404).sendFile(path.join(pub, '404.html')));
 
 const port = process.env.PORT || 3000;
