@@ -25,3 +25,16 @@ test('report API compares the same page, skips newer unrelated pages and audit t
   assert.equal(result.previous.id, previous); assert.deepEqual(result.previous.changes, { cleared: 1, introduced: 1, persisting: 0 });
  } finally { await new Promise(resolve => server.close(resolve)); }
 });
+
+
+test('disposable preview warning is explicit and absent from ordinary production pages', async () => {
+ const { previewHtml } = await import('../src/server.js');
+ const html = '<html><body><main>Audit</main></body></html>';
+ assert.equal(previewHtml(html, false), html);
+ const preview = previewHtml(html, true);
+ assert.match(preview, /Temporary review preview/);
+ assert.match(preview, /Reports may disappear/);
+ assert.match(preview, /anyone who has them/);
+ assert.match(preview, /Do not submit private or sensitive URLs/);
+ assert.match(preview, /<main>Audit<\/main>/);
+});
