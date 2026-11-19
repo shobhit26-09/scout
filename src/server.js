@@ -4,7 +4,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { crawl } from './crawler.js';
 import { crawlSite } from './site-crawl.js';
-import { randomBytes } from 'node:crypto';
+import * as store from './db.js';
+import { createSiteJobs } from './site-jobs.js';
+import { siteJobRoutes } from './site-job-routes.js';
 import { readFileSync } from 'node:fs';
 import { saveCrawl, getCrawl, hostHistory, recent } from './db.js';
 
@@ -41,30 +43,8 @@ app.post('/api/crawl', async (req, res) => {
     res.status(422).json({ error: e.message || 'Audit failed.' });
   } finally { inflight--; }
 });
-// Whole-site crawls run as background jobs; the page polls for progress.
-const jobs = new Map(), siteHits = new Map();
-let siteRunning = 0;
-app.post('/api/site-crawl', (req, res) => {
-  const url = String(req.body?.url || '').slice(0, 2000);
-  if (!url) return res.status(400).json({ error: 'Enter a URL to crawl.' });
-  const now = Date.now(), arr = (siteHits.get(req.ip) || []).filter((t) => now - t < 10 * 60_000);
-  if (arr.length >= 2) return res.status(429).json({ error: 'Whole-site crawls are limited to two per 10 minutes per visitor.' });
-  if (siteRunning >= 1) return res.status(503).json({ error: 'Another site crawl is running. Try again in a minute.' });
-  arr.push(now); siteHits.set(req.ip, arr);
-  const id = randomBytes(8).toString('hex');
-  const job = { status: 'running', progress: { phase: 'Starting' }, started: now };
-  jobs.set(id, job); siteRunning++;
-  crawlSite(url, (p) => { job.progress = p; })
-    .then(async (report) => { job.resultId = await saveCrawl(report); job.status = 'done'; })
-    .catch((e) => { job.status = 'error'; job.error = e.message || 'Crawl failed.'; })
-    .finally(() => { siteRunning--; setTimeout(() => jobs.delete(id), 15 * 60_000).unref(); });
-  res.json({ job: id });
-});
-app.get('/api/site-crawl/:job', (req, res) => {
-  const j = jobs.get(req.params.job);
-  if (!j) return res.status(404).json({ error: 'That crawl is no longer tracked. Start a new one.' });
-  res.json({ status: j.status, progress: j.progress, id: j.resultId, error: j.error });
-});
+// Persist tracking before accepting a whole-site crawl.
+app.use('/api/site-crawl', siteJobRoutes(createSiteJobs({ store, crawlSite, saveCrawl })));
 const wrap = (fn) => (req, res) => fn(req, res).catch(() => res.status(502).json({ error: 'Storage is unavailable right now.' }));
 app.get('/api/crawl/:id', wrap(async (req, res) => {
   const r = /^[a-f0-9]{10}$/.test(req.params.id) && await getCrawl(req.params.id);
