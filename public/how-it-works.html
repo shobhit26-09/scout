@@ -20,7 +20,7 @@
     <li><b>Check the rules.</b><span>Scout fetches robots.txt first. If the page is disallowed for crawlers, it stops and tells you. Private and local addresses are refused.</span></li>
     <li><b>Fetch the page.</b><span>One request, identified as ScoutBot, the way a search engine would see it. It records response time, size and headers.</span></li>
     <li><b>Run the checks.</b><span>The HTML is parsed and every check runs against it. Links are probed, and the sitemap is looked up. For whole-site crawls, Scout follows internal links up to 50 pages with a short pause between pages.</span></li>
-    <li><b>Look up trust signals.</b><span>The domain is checked against Google Safe Browsing and public registration data (RDAP), alongside URL and page patterns.</span></li>
+    <li><b>Look up trust signals.</b><span>The domain is checked against public registration data (RDAP), URL and page patterns. Google Safe Browsing is checked when configured; unavailable checks are disclosed.</span></li>
     <li><b>Save and score.</b><span>Findings are scored, saved, and given a link of their own. A screenshot is requested from a free screenshot service.</span></li>
   </ol>
 </section>
@@ -63,7 +63,7 @@
   <h2 class="sec">The Trust verdict</h2>
   <p class="lede">A fast, evidence-based read on whether a site looks like a scam. It is a risk signal, not a guarantee in either direction.</p>
   <div class="verdicts">
-    <div class="vd t-safe"><b>Safe</b><span>No meaningful signals found.</span></div>
+    <div class="vd t-safe"><b>No flags in checked signals</b><span>Limited automated checks found no flags. This does not prove the site is safe.</span></div>
     <div class="vd t-suspicious"><b>Suspicious</b><span>3 or more warning points. Check before you pay or sign in.</span></div>
     <div class="vd t-high"><b>High risk</b><span>A Google Safe Browsing hit, or 6 or more points.</span></div>
   </div>
