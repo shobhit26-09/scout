@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import { safeFetch, assertPublicUrl } from './safe-fetch.js';
-import { runChecks, score, categoryScores } from './checks.js';
+import { runChecks, score, categoryScores, RULESET_VERSION } from './checks.js';
 import { fetchSignals, trustFindings } from './trust.js';
 
 const MAX_LINK_CHECKS = 25;
@@ -194,6 +194,7 @@ export async function crawl(inputUrl, onStep = () => {}, opts = {}) {
   const findings = base0.map((x) => (x.severity !== 'pass' && evidence[x.id] ? { ...x, evidence: evidence[x.id] } : x));
   const internalLinks = fast ? [...hrefs.keys()].filter((u) => { try { const x = new URL(u); return x.hostname.replace(/^www\./, '') === baseHost && !/\.(pdf|zip|png|jpe?g|gif|svg|webp|mp4|css|js|xml|ico|woff2?)$/i.test(x.pathname); } catch { return false; } }).slice(0, 300) : undefined;
   return {
+    rulesetVersion: RULESET_VERSION,
     trust,
     internalLinks,
     url: page.url, finalUrl: page.finalUrl, host: new URL(page.finalUrl).hostname.replace(/^www\./, ''),
@@ -201,4 +202,4 @@ export async function crawl(inputUrl, onStep = () => {}, opts = {}) {
     stats: { responseMs: res.ms, htmlKb: Math.round(res.bytes / 1024), words: page.wordCount, images: imgs.length, links: internal + external, linksChecked: results.length, brokenLinks: broken.length, headings: headings.length },
     outline: headings.slice(0, 40),
   };
-}
+    }
