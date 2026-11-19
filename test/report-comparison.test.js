@@ -37,4 +37,5 @@ test('disposable preview warning is explicit and absent from ordinary production
  assert.match(preview, /anyone who has them/);
  assert.match(preview, /Do not submit private or sensitive URLs/);
  assert.match(preview, /<main>Audit<\/main>/);
+ assert.match(previewHtml('<html><body id="top"><main>Audit</main></body></html>', true), /<body id="top"><aside/);
 });
