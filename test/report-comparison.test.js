@@ -39,3 +39,16 @@ test('disposable preview warning is explicit and absent from ordinary production
  assert.match(preview, /<main>Audit<\/main>/);
  assert.match(previewHtml('<html><body id="top"><main>Audit</main></body></html>', true), /<body id="top"><aside/);
 });
+
+test('API never compares different scoring rulesets, but finds older matching policy', async () => {
+ const base = { host:'policy.example', url:'https://policy.example/', finalUrl:'https://policy.example/', title:'Policy fixture', score:40, categories:{SEO:40}, findings:[] };
+ await saveCrawl(base); await new Promise(r=>setTimeout(r,3));
+ const current=await saveCrawl({...base,rulesetVersion:2,score:90});
+ const server=app.listen(0,'127.0.0.1');await new Promise(r=>server.once('listening',r));
+ try {
+  const origin=`http://127.0.0.1:${server.address().port}`;
+  assert.equal((await(await fetch(origin+'/api/crawl/'+current)).json()).previous,null);
+  await new Promise(r=>setTimeout(r,3));const next=await saveCrawl({...base,rulesetVersion:2,score:95});
+  assert.equal((await(await fetch(origin+'/api/crawl/'+next)).json()).previous.id,current);
+ } finally {await new Promise(r=>server.close(r));}
+});
