@@ -29,7 +29,7 @@ Every report shows Safe, Suspicious or High risk, with the evidence behind each 
 
 ## Whole-site crawl
 
-Choose "Whole site" on the home page. Scout reads robots.txt and sitemap.xml, follows same-origin links, and audits up to 50 pages one at a time (250 ms apart, 110 s cap). It saves one site report with an overall score, per-category scores, an issue roll-up and a per-page table. Crawls run as background jobs (two per visitor per 10 minutes, one at a time per server).
+Choose "Whole site" on the home page. Scout reads robots.txt and sitemap.xml, follows same-origin links, and audits up to 50 pages one at a time (250 ms apart, 110 s cap). It saves one site report with an overall score, per-category scores, an issue roll-up and a per-page table. Crawls run as background jobs (two per visitor per 10 minutes, one at a time per server process). Job metadata and the last progress checkpoint are saved before the API accepts the job. Completed or failed job status survives an application restart when its database survives. An unfinished job without a heartbeat for two minutes is marked interrupted on the next status poll, not automatically resumed. See [job reliability](docs/job-reliability.md) for deployment and test limits.
 
 ## Run it
 
@@ -47,4 +47,4 @@ Without Supabase env vars, reports go to a local SQLite file; set `DB_PATH` to c
 
 ## Limits
 
-Audits a single page plus its links, not a whole-site crawl. JavaScript is not executed, so client-rendered pages are audited as crawlers without JS see them (which is usually the point).
+Single-page mode audits one page and its links; whole-site mode is capped at 50 pages and 110 seconds. JavaScript is not executed, so client-rendered pages are audited as crawlers without JS see them (which is usually the point).
