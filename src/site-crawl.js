@@ -1,4 +1,5 @@
 // Whole-site crawl: discover same-origin pages, audit each one politely, roll results up.
+import { RULESET_VERSION } from './checks.js';
 import { crawl, parseRobots } from './crawler.js';
 import { safeFetch, assertPublicUrl } from './safe-fetch.js';
 
@@ -6,7 +7,7 @@ export const LIMITS = { pages: 50, ms: 110_000, delayMs: 250 };
 const norm = (u) => { const x = new URL(u); x.hash = ''; if (x.pathname.length > 1) x.pathname = x.pathname.replace(/\/+$/, ''); return x.href; };
 const sameSite = (a, b) => new URL(a).hostname.replace(/^www\./, '') === new URL(b).hostname.replace(/^www\./, '');
 const sleep = (ms) => new Promise((ok) => setTimeout(ok, ms));
-const LABELS = { 'img-alt': 'Images missing alt text', 'img-size': 'Images without width and height', 'link-text': 'Vague link text', 'links-count': 'Link counts', content: 'Thin content', broken: 'Broken links', title: 'Title length', description: 'Meta description length', h1: 'H1 problems', 'heading-order': 'Heading levels skipped', 'blocking-js': 'Render-blocking scripts', 'script-count': 'Many script tags', redirects: 'Redirect chains', mixed: 'Insecure (http://) resources', cookies: 'Cookies with weak flags', size: 'Heavy HTML', ttfb: 'Slow server response', 'img-lazy': 'Images not lazy-loaded' };
+const LABELS = { 'img-alt': 'Images missing alt text', 'img-size': 'Images without width and height', 'link-text': 'Vague link text', 'links-count': 'Link counts', content: 'Thin content', broken: 'Broken links', title: 'Title wording', description: 'Meta description wording', h1: 'H1 problems', 'heading-order': 'Heading levels skipped', 'blocking-js': 'Render-blocking scripts', 'script-count': 'Many script tags', redirects: 'Redirect chains', mixed: 'Insecure (http://) resources', cookies: 'Cookies with weak flags', size: 'Heavy HTML', ttfb: 'Slow server response', 'img-lazy': 'Images not lazy-loaded' };
 const avg = (a) => (a.length ? Math.round(a.reduce((s, x) => s + x, 0) / a.length) : 0);
 
 async function sitemapUrls(origin, robots, base) {
@@ -85,7 +86,7 @@ export async function crawlSite(inputUrl, onProgress = () => {}, limits = LIMITS
   const host = new URL(pages[0].url).hostname.replace(/^www\./, '');
   const order = { critical: 0, warning: 1, info: 2 };
   return {
-    type: 'site', url: pages[0].url, finalUrl: pages[0].url, host,
+    rulesetVersion: RULESET_VERSION, type: 'site', url: pages[0].url, finalUrl: pages[0].url, host,
     title: `Site crawl: ${host} (${pages.length} page${pages.length > 1 ? 's' : ''})`,
     score: avg(pages.map((p) => p.score)),
     categories: Object.fromEntries(Object.entries(sums).map(([k, v]) => [k, avg(v)])),
@@ -95,4 +96,4 @@ export async function crawlSite(inputUrl, onProgress = () => {}, limits = LIMITS
     issues: [...issues.values()].sort((a, b) => order[a.severity] - order[b.severity] || b.pages - a.pages).slice(0, 60),
     skipped: skipped.slice(0, 20),
   };
-}
+    }
