@@ -3,11 +3,12 @@
 <body><div id="nav"></div><main class="wrap" id="app"><div class="rskel" aria-busy="true"><div class="head"><div class="sk ring0"></div><div class="meta"><div class="sk" style="height:14px;width:30%"></div><div class="sk" style="height:30px;width:60%"></div><div class="sk" style="height:14px;width:45%"></div></div></div><div class="st"><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div><div class="sk"></div></div><div class="sk rw"></div><div class="sk rw"></div><div class="sk rw"></div></div></main><div id="foot"></div>
 <script type="module">
 import {nav,foot,ring,ago,tone,color,esc,toast} from '/ui.js';
+import {mountWorkbench} from '/report-workbench.js';
 document.getElementById('nav').innerHTML=nav;document.getElementById('foot').innerHTML=foot;
 const id=location.pathname.split('/').pop(),app=document.getElementById('app');
 let r;try{r=await fetch('/api/crawl/'+id)}catch{r=null}
 if(!r||!r.ok){const gone=r&&r.status===404;document.title=gone?'Report not found - Scout':'Report unavailable - Scout';app.innerHTML=`<div class="nf"><p class="code">${gone?'404':'Oops'}</p><h1>${gone?'That report doesn\u2019t exist':'We couldn\u2019t load this report'}</h1><p>${gone?'The link may be mistyped, or the report was never saved.':'Something went wrong on our side. Try again in a moment.'}</p><div class="acts">${gone?'':'<a class="btn" href="'+location.pathname+'">Try again</a>'}<a class="btn ${gone?'':'ghost'}" href="/">Audit a site</a></div></div>`}
-else{const d=await r.json();document.title=`${d.host} scored ${d.score} - Scout`;d.type==='site'?renderSite(d):render(d)}
+else{const d=await r.json();document.title=`${d.host} scored ${d.score} - Scout`;d.type==='site'?renderSite(d):render(d);mountWorkbench(app,d)}
 function tbadge(d){const t=d.trust;if(!t)return '';const L={safe:'Safe',suspicious:'Suspicious',high:'High risk'}[t.verdict];
  const why={safe:'No scam signals found.',suspicious:'Some warning signs. Check before you pay or log in.',high:'Strong scam or malware signals. Do not enter data here.'}[t.verdict];
  const sb=t.safeBrowsing==='unavailable'?' Blacklist check unavailable.':'';
@@ -64,7 +65,7 @@ function render(d){
  <div class="toolbar"><div class="seg" id="seg"></div><span style="font-size:13px;color:var(--ink3)">Click a row for the fix</span></div>
  <div id="groups"></div>
  <div class="group"><h3>Heading outline</h3><div class="outline">${d.outline.length?d.outline.map(h=>`<div style="padding-left:${(h.level-1)*18}px"><small>H${h.level}</small>${esc(h.text||'(empty)')}</div>`).join(''):'No headings found.'}</div></div>`;
- const im=document.querySelector('#shotf img');if(im){let tried=0;im.onerror=()=>{if(!tried&&d.shotAlt){tried=1;im.src=d.shotAlt}else im.closest('figure').remove()};im.onload=()=>{if(im.naturalWidth<300)im.closest('figure').classList.add('wait')}}
+ const im=document.querySelector('#shotf img');if(im){let tried=0;im.onerror=()=>{if(!tried&&d.shotAlt){tried=1;im.src=d.shotAlt}else{const fallback=document.createElement('div');fallback.className='shot-unavailable';fallback.textContent='Page screenshot unavailable. The audit findings below still come from the saved page response.';im.closest('figure').replaceWith(fallback)}};im.onload=()=>{if(im.naturalWidth<300)im.closest('figure').classList.add('wait')}}
  let filter='issues';
  const tabs=[['issues','Issues',count('critical')+count('warning')+count('info')],['critical','Critical',count('critical')],['warning','Warnings',count('warning')],['info','Info',count('info')],['pass','Passed',count('pass')],['all','All',d.findings.length]];
  const seg=document.getElementById('seg');
