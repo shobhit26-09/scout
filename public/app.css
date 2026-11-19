@@ -262,3 +262,9 @@ section.block.tight{padding-top:64px}
 .rskel .rw{height:54px;margin-bottom:8px;border-radius:14px}
 /* history rows must not overflow on small screens */
 .hist{grid-template-columns:minmax(0,1fr)}.hrow{min-width:0}.nf h1{overflow-wrap:anywhere}
+
+.pending-crawl { text-align: left; max-width: 660px; margin: 20px auto; padding: 20px; border: 1px solid var(--line, #dbe1e5); border-radius: 16px; background: var(--card, #f8faf9); }
+.pending-crawl[hidden] { display: none; }
+.pending-crawl p { margin: 8px 0; font-size: 14px; line-height: 1.5; color: var(--muted, #526174); overflow-wrap: anywhere; }
+.pending-crawl > div { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 10px; }
+.pending-crawl small { color: var(--muted, #526174); line-height: 1.5; }
