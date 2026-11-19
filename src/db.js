@@ -3,6 +3,7 @@
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { sqliteJobs, restJobs } from './job-store.js';
 
 const { SUPABASE_URL, SUPABASE_SERVICE_KEY } = process.env;
 export const driver = SUPABASE_URL && SUPABASE_SERVICE_KEY ? 'supabase' : 'sqlite';
@@ -19,6 +20,7 @@ if (driver === 'supabase') {
   };
   const camel = (r) => ({ id: r.id, host: r.host, url: r.url, title: r.title, score: r.score, createdAt: Number(r.created_at) });
   impl = {
+    ...restJobs(`${SUPABASE_URL.replace(/\/$/, '')}/rest/v1/scout_jobs`, headers),
     async saveCrawl(report) {
       const id = newId();
       await call('', { method: 'POST', headers: { prefer: 'return=minimal' }, body: JSON.stringify({ id, host: report.host, url: report.url, title: report.title, score: report.score, created_at: Date.now(), report }) });
@@ -42,6 +44,7 @@ if (driver === 'supabase') {
   const db = new DatabaseSync(file);
   db.exec(`CREATE TABLE IF NOT EXISTS crawls (id TEXT PRIMARY KEY, host TEXT NOT NULL, url TEXT NOT NULL, title TEXT, score INTEGER NOT NULL, created_at INTEGER NOT NULL, report TEXT NOT NULL); CREATE INDEX IF NOT EXISTS crawls_host ON crawls(host, created_at DESC);`);
   impl = {
+    ...sqliteJobs(db),
     async saveCrawl(report) {
       const id = newId();
       db.prepare('INSERT INTO crawls VALUES (?,?,?,?,?,?,?)').run(id, report.host, report.url, report.title, report.score, Date.now(), JSON.stringify(report));
@@ -60,3 +63,5 @@ if (driver === 'supabase') {
   };
 }
 export const { saveCrawl, getCrawl, hostHistory, recent } = impl;
+
+export const { createJob, updateJob, getJob, failStaleJob, pruneJobs } = impl;
