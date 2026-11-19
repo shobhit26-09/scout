@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { actionableFindings, filterPlan, planKey, readPlan, writePlan, planMarkdown, compareFindings, comparableReports } from '../public/action-plan.js';
+import { actionableFindings, filterPlan, planKey, readPlan, writePlan, planMarkdown, compareFindings, comparableReports, riskSummary } from '../public/action-plan.js';
 const report = { id: 'abc123abcd', url: 'https://example.com/page', finalUrl: 'https://example.com/page', score: 62, findings: [
   { id: 'title', category: 'SEO', severity: 'critical', title: 'Missing title', fix: 'Add a title', detail: '<title> is empty' },
   { id: 'https', category: 'Security', severity: 'pass', title: 'HTTPS' },
@@ -24,3 +24,13 @@ test('markdown handoff includes actual evidence, progress and privacy caveat', (
 test('fresh audit compares rule identities without calling them verified fixes', () => { const current = { ...report, findings: [report.findings[2], { id: 'new', category: 'SEO', severity: 'info' }] }; assert.deepEqual(compareFindings(report, current), { cleared: 2, introduced: 1, persisting: 1 }); });
 test('different pages and audit types never become a misleading comparison', () => { assert.equal(comparableReports(report, { ...report, url: 'https://example.com/other', finalUrl: 'https://example.com/other' }), false); assert.equal(compareFindings(report, { ...report, type: 'site' }), null); assert.equal(comparableReports({ ...report, url: 'bad', finalUrl: 'bad' }, report), false); });
 test('fragments are ignored while meaningful queries remain distinct', () => { assert.equal(comparableReports(report, { ...report, finalUrl: `${report.finalUrl}#section` }), true); assert.equal(comparableReports(report, { ...report, finalUrl: `${report.finalUrl}?variant=2` }), false); });
+
+test('risk summary never turns incomplete automated checks into a safety guarantee', () => {
+ const missing = riskSummary({ verdict: 'safe', safeBrowsing: 'unavailable' });
+ assert.equal(missing.label, 'No flags in checked signals');
+ assert.match(missing.detail, /was not checked/);
+ assert.match(missing.detail, /do not prove a site is safe/);
+ assert.match(riskSummary({ verdict: 'safe', safeBrowsing: 'clean' }).detail, /at audit time/);
+ assert.equal(riskSummary({ verdict: 'high', safeBrowsing: 'threat' }).label, 'High-risk signals found');
+ assert.equal(riskSummary({ verdict: 'invented' }).label, 'Check incomplete');
+});
