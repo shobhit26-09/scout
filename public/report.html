@@ -4,15 +4,14 @@
 <script type="module">
 import {nav,foot,ring,ago,tone,color,esc,toast} from '/ui.js';
 import {mountWorkbench} from '/report-workbench.js';
+import {riskSummary} from '/action-plan.js';
 document.getElementById('nav').innerHTML=nav;document.getElementById('foot').innerHTML=foot;
 const id=location.pathname.split('/').pop(),app=document.getElementById('app');
 let r;try{r=await fetch('/api/crawl/'+id)}catch{r=null}
 if(!r||!r.ok){const gone=r&&r.status===404;document.title=gone?'Report not found - Scout':'Report unavailable - Scout';app.innerHTML=`<div class="nf"><p class="code">${gone?'404':'Oops'}</p><h1>${gone?'That report doesn\u2019t exist':'We couldn\u2019t load this report'}</h1><p>${gone?'The link may be mistyped, or the report was never saved.':'Something went wrong on our side. Try again in a moment.'}</p><div class="acts">${gone?'':'<a class="btn" href="'+location.pathname+'">Try again</a>'}<a class="btn ${gone?'':'ghost'}" href="/">Audit a site</a></div></div>`}
 else{const d=await r.json();document.title=`${d.host} scored ${d.score} - Scout`;d.type==='site'?renderSite(d):render(d);mountWorkbench(app,d)}
-function tbadge(d){const t=d.trust;if(!t)return '';const L={safe:'Safe',suspicious:'Suspicious',high:'High risk'}[t.verdict];
- const why={safe:'No scam signals found.',suspicious:'Some warning signs. Check before you pay or log in.',high:'Strong scam or malware signals. Do not enter data here.'}[t.verdict];
- const sb=t.safeBrowsing==='unavailable'?' Blacklist check unavailable.':'';
- return `<div class="trust t-${t.verdict}"><span class="td"></span><b>Trust: ${L}</b><span class="tw">${why}${sb}</span></div>`}
+function tbadge(d){const t=d.trust;if(!t)return '';const summary=riskSummary(t);
+ return `<div class="trust t-${['safe','suspicious','high'].includes(t.verdict)?t.verdict:'suspicious'}"><span class="td"></span><b>Risk check: ${esc(summary.label)}</b><span class="tw">${esc(summary.detail)}</span></div>`}
 function dl(n){return `<b class="${n>0?'up':n<0?'down':'flat'}">${n>0?'+':''}${n}</b>`}
 function diff(d){
  const p=d.previous;if(!p)return '';
