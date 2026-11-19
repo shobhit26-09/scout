@@ -3,6 +3,7 @@ import { nav, foot } from '../public/ui.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { crawl } from './crawler.js';
+import { comparableReports, compareFindings } from '../public/action-plan.js';
 import { crawlSite } from './site-crawl.js';
 import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -73,8 +74,8 @@ app.get('/api/crawl/:id', wrap(async (req, res) => {
   try {
     const cands = (await hostHistory(r.host)).filter((h) => h.id !== r.id && h.createdAt < r.createdAt).sort((a, b) => b.createdAt - a.createdAt).slice(0, 6);
     let full = null;
-    for (const c of cands) { const x = await getCrawl(c.id); if (x && (x.type === 'site') === (r.type === 'site')) { full = x; break; } }
-    if (full) previous = { id: full.id, score: full.score, categories: full.categories, createdAt: full.createdAt };
+    for (const c of cands) { const x = await getCrawl(c.id); if (x && comparableReports(x, r)) { full = x; break; } }
+    if (full) previous = { id: full.id, score: full.score, categories: full.categories, createdAt: full.createdAt, changes: compareFindings(full, r) };
   } catch { /* diff is optional */ }
   res.json({ ...r, previous });
 }));
