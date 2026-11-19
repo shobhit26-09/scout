@@ -27,17 +27,17 @@
 
 <section class="block tight" id="scoring">
   <h2 class="sec">How the score works</h2>
-  <p class="lede">Every score starts at 100 and loses points for each problem. No weighting tricks and no machine learning, so the same page gets the same score.</p>
+  <p class="lede">A rule-based checklist starts at 100 and deducts points for scored findings. It is not a ranking prediction, business-impact estimate or security certification. Results can change with timing, page responses, available signals and ruleset updates.</p>
   <div class="split">
     <div class="tbl">
       <div class="tr th"><span>Finding type</span><span>Points lost</span></div>
       <div class="tr"><span><i class="badge b-critical">critical</i></span><span>12</span></div>
       <div class="tr"><span><i class="badge b-warning">warning</i></span><span>5</span></div>
-      <div class="tr"><span><i class="badge b-info">info</i></span><span>1.5</span></div>
+      <div class="tr"><span><i class="badge b-info">info</i></span><span>0 for neutral editorial hints; 1.5 otherwise</span></div>
       <div class="tr"><span><i class="badge b-pass">pass</i></span><span>0</span></div>
     </div>
     <div class="note">
-      <p><b>Overall score</b> uses all findings together. <b>Category scores</b> use only that category's findings, so a weak Security score does not hide a strong SEO one.</p>
+      <p><b>Ruleset 2 priorities.</b> Routine metadata suggestions and character-length ranges are informational, not search-engine requirements. Critical is reserved for higher-priority transport or risk signals, not a confirmed exploit or incident. Warnings still need context: noindex and crawl restrictions may be intentional. Old reports retain their original score and rules; comparisons require the same ruleset.</p><p>Sources: <a href="https://developers.google.com/search/docs/appearance/snippet">Google snippet guidance</a> and <a href="https://developers.google.com/search/docs/appearance/title-link">Google title-link guidance</a>.</p><p><b>Overall score</b> uses all findings together. <b>Category scores</b> use only that category's findings, so a weak Security score does not hide a strong SEO one.</p>
       <p>Colors: <b class="g">85 and up</b> is good, <b class="a">60 to 84</b> needs work, <b class="r">under 60</b> needs attention.</p>
       <p>Whole-site crawls score each page the same way and group identical issues, so you see "missing meta description on 9 pages" instead of nine rows.</p>
     </div>
