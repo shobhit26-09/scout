@@ -70,4 +70,4 @@ export function mountWorkbench(app, report) {
   const evidence = document.createElement('h2'); evidence.className = 'plan-evidence-title'; evidence.textContent = 'Full audit evidence';
   section.after(evidence);
   showProgress(); draw();
-      }
+}
