@@ -61,3 +61,9 @@ export function compareFindings(previous, current) {
   const after = new Set(actionableFindings(current).map(item => item.id));
   return { cleared: [...before].filter(id => !after.has(id)).length, introduced: [...after].filter(id => !before.has(id)).length, persisting: [...after].filter(id => before.has(id)).length };
 }
+
+export function riskSummary(trust) {
+  const label = { safe: 'No flags in checked signals', suspicious: 'Warning signals found', high: 'High-risk signals found' }[trust?.verdict] || 'Check incomplete';
+  const checked = trust?.safeBrowsing === 'clean' ? 'Google Safe Browsing returned no listing at audit time.' : trust?.safeBrowsing === 'threat' ? 'Google Safe Browsing returned a threat listing.' : 'Google Safe Browsing was not checked.';
+  return { label, detail: `${checked} Automated checks are limited and do not prove a site is safe.` };
+}
