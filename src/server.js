@@ -3,7 +3,7 @@ import { nav, foot } from '../public/ui.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { crawl } from './crawler.js';
-import { comparableReports, compareFindings } from '../public/action-plan.js';
+import { comparableReports, compareFindings, riskSummary } from '../public/action-plan.js';
 import { crawlSite } from './site-crawl.js';
 import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -109,7 +109,7 @@ app.get('/og.png', (_req, res) => res.type('png').set('Cache-Control', 'public, 
 const reportHtml = previewHtml(readFileSync(path.join(pub, 'report.html'), 'utf8'));
 const escA = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export function shareTags(r, base, id) {
-  const T = { safe: 'Trust: Safe', suspicious: 'Trust: Suspicious', high: 'Trust: High risk' }[r.trust?.verdict];
+  const T = r.trust ? `Limited risk check: ${riskSummary(r.trust).label}` : '';
   const title = `Scout audit: ${r.host} - ${r.score}/100`;
   const sev = (k) => (r.type === 'site' ? r.stats?.[k] : r.findings?.filter((x) => x.severity === k).length) ?? 0;
   const desc = [r.type === 'site' ? `${r.stats?.pages ?? '?'} pages audited` : 'Page audit', T, `${sev('critical')} critical, ${sev('warning')} warnings`].filter(Boolean).join(' · ') + '. See every finding and the fix for each.';
