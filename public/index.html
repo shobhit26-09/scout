@@ -16,6 +16,7 @@
   <div class="mode" id="mode" role="group" aria-label="Audit scope"><button type="button" data-m="page" class="on">One page</button><button type="button" data-m="site">Whole site <small>up to 50 pages</small></button></div>
   <div class="steps" id="steps"><div class="bar"><b></b></div><p id="stepTxt">Starting...</p><div class="skrep" aria-hidden="true"><div class="sk r"></div><div><div class="sk l1"></div><div class="sk l2"></div><div class="sk l3"></div></div></div></div>
   <div class="err" id="err" role="alert"></div>
+  <div class="pending-crawl" id="pendingCrawl" hidden><b>Continue your last whole-site crawl</b><p id="pendingCrawlUrl"></p><p>Check its saved status without starting another crawl. This does not restart an interrupted crawl.</p><div><button type="button" class="btn" id="resumeCrawl">Check crawl status</button><button type="button" class="btn ghost" id="dismissCrawl">Dismiss</button></div><small>Dismissing this notice does not cancel the server job.</small></div>
   <div class="hint">Try <button type="button" data-u="stripe.com">stripe.com</button> <button type="button" data-u="stocksensee.netlify.app">stocksensee.netlify.app</button> <button type="button" data-u="example.com">example.com</button></div>
 
   <ul class="facts"><li><b>9</b> categories</li><li><b>80+</b> checks</li><li><b>Free</b> forever</li><li><b>0</b> sign-ups</li></ul>
@@ -90,6 +91,7 @@
 <div id="foot"></div>
 <script type="module">
 import {nav,foot,ring,ago,tone,esc} from '/ui.js';
+import {pendingCrawl,rememberCrawl,forgetCrawl,pollCrawl} from '/crawl-session.js';
 document.getElementById('nav').innerHTML=nav;document.getElementById('foot').innerHTML=foot;
 document.getElementById('ctaTop').onclick=e=>{e.preventDefault();scrollTo({top:0,behavior:'smooth'});setTimeout(()=>u.focus({preventScroll:true}),400)};
 fetch('/api/crawl/d155619f32').then(r=>r.json()).then(d=>{
@@ -104,19 +106,38 @@ const ERR=[[/robots\.txt/i,'Scout was asked not to look here','This site\u2019s 
 function showErr(m){const e=ERR.find(x=>x[0].test(m))||[0,'Something went wrong',m||'Please try again.'];err.innerHTML=`<div class="ecard"><svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="8"/><path d="M10 6v5M10 14v.01"/></svg><div><b>${esc(e[1])}</b><span>${esc(e[2])}</span></div></div>`}
 const msgs=['Reading robots.txt','Fetching the page','Analyzing markup','Looking for a sitemap','Checking links'];
 let mode='page';document.querySelectorAll('#mode button').forEach(x=>x.onclick=()=>{mode=x.dataset.m;document.querySelectorAll('#mode button').forEach(y=>y.classList.toggle('on',y===x));b.firstChild.textContent=mode==='site'?'Crawl site ':'Audit site '});
+const crawlStorage={getItem:key=>sessionStorage.getItem(key),setItem:(key,value)=>sessionStorage.setItem(key,value),removeItem:key=>sessionStorage.removeItem(key)};
+let savedCrawl=pendingCrawl(crawlStorage);
+const pendingBox=document.getElementById('pendingCrawl'),resumeButton=document.getElementById('resumeCrawl'),dismissButton=document.getElementById('dismissCrawl');
+function renderPending(){pendingBox.hidden=!savedCrawl;document.getElementById('pendingCrawlUrl').textContent=savedCrawl?.url||''}
+function clearPending(){savedCrawl=null;forgetCrawl(crawlStorage);renderPending()}
+renderPending();
+dismissButton.onclick=()=>clearPending();
+async function checkCrawl(job){
+ steps.classList.add('on');st.textContent='Checking saved crawl...';
+ const id=await pollCrawl(job,{fetchStatus:id=>fetch('/api/site-crawl/'+id),onTerminal:clearPending,onProgress:g=>{
+  st.textContent=g.total?`Auditing pages ${g.done}/${g.total} - ${g.current}`:(g.phase||'Working')+'...';
+  const bar=document.querySelector('#steps .bar b');if(bar&&g.total){bar.style.animation='none';bar.style.width=Math.max(6,Math.round(g.done/g.total*100))+'%'}
+ }});
+ location.href='/crawl/'+id;
+}
+resumeButton.onclick=async()=>{
+ if(!savedCrawl||b.disabled)return;
+ err.innerHTML='';b.disabled=resumeButton.disabled=dismissButton.disabled=true;
+ try{await checkCrawl(savedCrawl.job)}catch(error){showErr(error.message);steps.classList.remove('on')}
+ finally{b.disabled=resumeButton.disabled=dismissButton.disabled=false;renderPending()}
+};
 async function runSite(){
+ if(savedCrawl)throw new Error('A crawl is already saved in this tab. Use Check crawl status, or Dismiss its notice before starting a new crawl.');
  const r=await fetch('/api/site-crawl',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:u.value})});const d=await r.json();if(!r.ok)throw new Error(d.error);
- steps.classList.add('on');
- for(;;){await new Promise(ok=>setTimeout(ok,1500));const p=await fetch('/api/site-crawl/'+d.job);const j=await p.json();if(!p.ok)throw new Error(j.error);
-  if(j.status==='error')throw new Error(j.error);
-  if(j.status==='done'){location.href='/crawl/'+j.id;return}
-  const g=j.progress||{};st.textContent=g.total?`Auditing pages ${g.done}/${g.total} - ${g.current}`:(g.phase||'Working')+'...';
-  const bar=document.querySelector('#steps .bar b');if(bar&&g.total){bar.style.animation='none';bar.style.width=Math.max(6,Math.round(g.done/g.total*100))+'%'}}
+ if(rememberCrawl(crawlStorage,d.job,u.value)){savedCrawl=pendingCrawl(crawlStorage);renderPending()}
+ else showErr('This tab cannot save crawl tracking. Keep it open until the crawl finishes.');
+ await checkCrawl(d.job);
 }
 f.onsubmit=async e=>{e.preventDefault();err.innerHTML='';if(!u.value.trim()){showErr('Enter a URL to audit.');return}
- b.disabled=true;steps.classList.add('on');let i=0;st.textContent=msgs[0];const t=setInterval(()=>{i=Math.min(i+1,msgs.length-1);st.textContent=msgs[i]+'...'},1400);
+ b.disabled=resumeButton.disabled=dismissButton.disabled=true;steps.classList.add('on');let i=0;st.textContent=msgs[0];const t=mode==='page'?setInterval(()=>{i=Math.min(i+1,msgs.length-1);st.textContent=msgs[i]+'...'},1400):null;
  try{if(mode==='site'){await runSite();return}const r=await fetch('/api/crawl',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:u.value})});const d=await r.json();if(!r.ok)throw new Error(d.error);location.href='/crawl/'+d.id}
- catch(x){showErr(x.message);b.disabled=false;steps.classList.remove('on')}finally{clearInterval(t)}};
+ catch(x){showErr(x.message);steps.classList.remove('on')}finally{clearInterval(t);b.disabled=resumeButton.disabled=dismissButton.disabled=false;renderPending()}};
 fetch('/api/recent').then(r=>r.ok?r.json():Promise.reject()).then(l=>{const el=document.getElementById('recentList');if(!l.length){el.className='';el.innerHTML='<div class="emptycard"><b>No audits yet</b><span>Run the first one above. Public reports show up here.</span></div>';return}
  el.innerHTML=l.map(x=>`<a class="rc" href="/crawl/${x.id}"><div class="sc s-${tone(x.score)}">${x.score}</div><div><b>${esc(x.host)}</b><span>${ago(x.createdAt)}</span></div></a>`).join('')}).catch(()=>{const el=document.getElementById('recentList');el.className='';el.innerHTML='<div class="emptycard"><b>Recent audits are unavailable</b><span>Try again in a moment. Audits still work.</span></div>'});
 </script></body></html>
