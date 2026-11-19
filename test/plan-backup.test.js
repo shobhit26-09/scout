@@ -1,0 +1,22 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { planBackup, parsePlanBackup, restorePlanBackup, planKey } from '../public/action-plan.js';
+const report = { id: 'abc123def0', url: 'https://example.com/', findings: [{ id: 'title', category: 'SEO', severity: 'warning', title: 'Review title' }] }, items = { 'SEO:title': { status: 'working', note: 'Fictional review note · 检查' } };
+const data = () => JSON.parse(planBackup(report, items));
+describe('report-bound progress recovery', () => {
+  it('round-trips exact private notes and progress', () => assert.deepEqual(parsePlanBackup(planBackup(report, items), report), items));
+  it('never copies progress onto another report ID', () => assert.throws(() => parsePlanBackup(planBackup(report, items), { ...report, id: 'other' }), /another audit/));
+  it('checks exact evidence URL and audit type', () => { for (const r of [{...report,url:'https://other.example/'},{...report,type:'site',issues:report.findings}]) assert.throws(() => parsePlanBackup(planBackup(report,items),r), /another audit/); });
+  it('preserves final URL binding across redirects', () => { const r = { ...report, finalUrl: 'https://example.com/final' }; assert.deepEqual(parsePlanBackup(planBackup(r,items),r),items); assert.throws(() => parsePlanBackup(planBackup(r,items),report), /another audit/); });
+  it('rejects unrecognized finding keys', () => { const d=data();d.items.extra={status:'todo',note:''};assert.throws(()=>parsePlanBackup(JSON.stringify(d),report),/not part/); });
+  it('rejects bad statuses, note types and oversized notes',()=>{for(const entry of [{status:'done',note:''},{status:'todo',note:{}},{status:'todo',note:'a'.repeat(1001)},null]){const d=data();d.items['SEO:title']=entry;assert.throws(()=>parsePlanBackup(JSON.stringify(d),report),/invalid/);}});
+  it('rejects malformed JSON, unrelated formats and newer versions',()=>{for(const raw of ['{bad','[]','null',JSON.stringify({...data(),version:2}),JSON.stringify({...data(),format:'other'})])assert.throws(()=>parsePlanBackup(raw,report));});
+  it('counts UTF8 bytes on import and export',()=>{assert.throws(()=>parsePlanBackup('界'.repeat(350000),report),/1 MB/);const findings=Array.from({length:500},(_,i)=>({id:String(i),category:'SEO',severity:'warning'})),entries=Object.fromEntries(findings.map(x=>['SEO:'+x.id,{status:'todo',note:'界'.repeat(1000)}]));assert.throws(()=>planBackup({...report,findings},entries),/1 MB/);});
+  it('allows a reviewed empty plan',()=>assert.deepEqual(parsePlanBackup(planBackup(report,{}),report),{}));
+  it('rebuilds known fields without retaining imported extras',()=>{const d=data();d.items['SEO:title'].extra='discard';assert.deepEqual(parsePlanBackup(JSON.stringify(d),report),items);});
+  it('does not change input report, notes or original score',()=>{const before=JSON.stringify({report,items});parsePlanBackup(planBackup(report,items),report);assert.equal(JSON.stringify({report,items}),before);});
+  it('writes only to the current report after checking the reviewed state',()=>{let value='original';const s={getItem:k=>{assert.equal(k,planKey(report));return value;},setItem:(k,v)=>{assert.equal(k,planKey(report));value=v;}};assert.deepEqual(restorePlanBackup(s,report,items,'original'),items);assert.deepEqual(JSON.parse(value).items,items);});
+  it('rejects stale replacement without any write',()=>{assert.throws(()=>restorePlanBackup({getItem:()=> 'newer',setItem:()=>assert.fail()},report,items,'old'),/changed/);});
+  it('does not swallow storage failures or claim recovery',()=>{assert.throws(()=>restorePlanBackup({getItem:()=>null,setItem:()=>{throw new DOMException('full','QuotaExceededError');}},report,items,null),{name:'QuotaExceededError'});});
+  it('rejects invalid restore before writing anything',()=>assert.throws(()=>restorePlanBackup({getItem:()=>null,setItem:()=>assert.fail()},report,{other:{}},null),/not part/));
+});
